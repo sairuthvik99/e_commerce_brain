@@ -5,7 +5,7 @@ Provides high-level query abstractions for agents.
 All queries use SQLAlchemy ORM.
 """
 
-from sqlalchemy import func, and_, desc
+from sqlalchemy import func, and_, desc, Integer
 from backend.database.connection import session_scope
 from backend.database.models import (
     Orders, InventorySnapshots, MarketingCampaignsDaily,
