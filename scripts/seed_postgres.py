@@ -6,11 +6,11 @@ from datetime import datetime, timedelta
 fake = Faker("en_IN")
 
 conn = psycopg2.connect(
-    dbname="ecommerce_db",
-    user="user",
-    password="password@123",
-    host="localhost",
-    port="5432"
+    dbname="",
+    user="",
+    password="",
+    host="",
+    port=""
 )
 
 cur = conn.cursor()
