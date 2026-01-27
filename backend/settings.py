@@ -7,6 +7,10 @@ class Settings:
     DIAL_API_KEY: str = os.getenv("DIAL_API_KEY")
     AZURE_ENDPOINT: str = "https://ai-proxy.lab.epam.com"
     API_VERSION: str = "2024-02-01"
+    EMBEDDING_DEPLOYMENT = os.getenv("AZURE_EMBEDDING_DEPLOYMENT", "text-embedding-005")
+
+    PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
+    PINECONE_INDEX = os.getenv("PINECONE_INDEX", "ai-ops-history")
     
     # Per-agent model mapping
     AGENT_MODELS = {
@@ -33,5 +37,15 @@ class Settings:
     DB_PASSWORD = os.getenv("DB_PASSWORD")
 
     DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+
+    # ==================== LANGFUSE CONFIGURATION ====================
+    
+    LANGFUSE_SECRET_KEY: str = os.getenv("LANGFUSE_SECRET_KEY")
+    LANGFUSE_PUBLIC_KEY: str = os.getenv("LANGFUSE_PUBLIC_KEY")
+    LANGFUSE_BASE_URL: str = os.getenv("LANGFUSE_BASE_URL", "https://cloud.langfuse.com")
+    
+    # Fixed Session and User IDs for tracing
+    LANGFUSE_SESSION_ID: str = "e-Commerce Multi Agents"
+    LANGFUSE_USER_ID: str = "001"
 
 Settings.validate()

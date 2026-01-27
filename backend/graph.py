@@ -2,6 +2,7 @@
 LangGraph Flow Definition
 
 Wires together the complete agentic system using new BaseAgent architecture.
+All graph operations are traced via Langfuse for observability.
 
 Flow:
     User Input → Supervisor → Domain Agents (sequential with data sharing) → 
@@ -14,14 +15,22 @@ Data Sharing Strategy:
 
 from langgraph.graph import StateGraph, END
 from typing import Dict, Any, TypedDict, List
+from datetime import datetime
+from langfuse import observe
 from .settings import Settings
 
 from .agents.sales.agent import SalesAgent
 from .agents.inventory.agent import InventoryAgent
 from .agents.marketing.agent import MarketingAgent
 from .agents.support.agent import SupportAgent
-
 from .agents.supervisor.agent import SupervisorAgent
+
+# Day 4: Synthesis and Reflection implementations
+from .synthesis.synthesis import SynthesisAgent
+from .reflection.agent import SelfReflectionAgent
+from .vector_db.history_store import HistoryStore
+from .schemas.root_cause import RootCause
+from .schemas.reflection_result import ReflectionResult
 
 import logging
 
@@ -40,9 +49,14 @@ class MVPState(TypedDict, total=False):
         agents_to_call: List of agent names to execute
         agent_outputs: Dict mapping agent name to AgentOutput
         agents_completed: List of agents that have finished execution
-        root_cause: Synthesized root cause (Day 4)
+        root_cause: Synthesized root cause (RootCause model)
+        causal_chain: Ordered list of agents in causal chain
+        reflection_result: Result of reflection audit (ReflectionResult model)
+        quality_score: Overall quality score from reflection
+        conflicts: List of detected conflicts between agents
         action_proposal: Proposed action (Day 5)
         hitl_decision: Human decision (Day 5)
+        timestamp: Timestamp of analysis
         error: Error message if something fails
     """
     question: str
@@ -50,77 +64,86 @@ class MVPState(TypedDict, total=False):
     agents_to_call: List[str]
     agent_outputs: Dict[str, Dict[str, Any]]
     agents_completed: List[str]
-    root_cause: Dict[str, Any]
+    root_cause: Dict[str, Any]  # RootCause model
+    causal_chain: List[str]
+    reflection_result: Dict[str, Any]  # ReflectionResult model
+    quality_score: float
+    conflicts: List[str]
     action_proposal: Dict[str, Any]
     hitl_decision: Dict[str, Any]
+    timestamp: str
     error: str
 
 
-# ==================== PLACEHOLDER NODES (Day 4-6) ====================
+# ==================== PERSIST ANALYSIS NODE ====================
 
-class SynthesisNode:
+class PersistAnalysisNode:
     """
-    Synthesizes agent outputs into root cause.
+    Persists completed analysis to Vector DB for historical reference.
+    Traced via Langfuse @observe decorator.
     
-    Day 3: Pass-through with logging
-    Day 4: Actual synthesis logic
+    Stores:
+        - Question and intent
+        - Root cause analysis
+        - Reflection results
+        - Agent outputs
+        - Timestamp
     """
+    def __init__(self):
+        self._history_store = None
+    
+    @property
+    def history_store(self):
+        """Lazy initialization of history store."""
+        if self._history_store is None:
+            try:
+                self._history_store = HistoryStore()
+            except Exception as e:
+                logger.warning(f"[PersistAnalysis] Failed to initialize HistoryStore: {e}")
+                self._history_store = None
+        return self._history_store
+    
+    @observe(name="persist_analysis_node")
     def __call__(self, state: MVPState) -> MVPState:
-        logger.info("[SynthesisNode] Aggregating agent outputs...")
+        logger.info("[PersistAnalysis] Saving analysis to Vector DB...")
         
-        agent_outputs = state.get("agent_outputs", {})
-        
-        # Log what we received
-        for agent_name, output in agent_outputs.items():
-            logger.info(
-                f"  → {agent_name}: {output.get('finding', 'N/A')[:80]}... "
-                f"(confidence: {output.get('confidence', 0):.2%})"
-            )
-        
-        logger.info("[SynthesisNode] Synthesis complete (Day 3 stub)")
-        
-        # Day 4: Will implement actual synthesis
-        state["root_cause"] = {
-            "summary": "Multiple issues detected across domains",
-            "agent_count": len(agent_outputs)
+        # Build analysis document
+        analysis = {
+            "question": state.get("question", ""),
+            "intent": state.get("intent", ""),
+            "root_cause": state.get("root_cause", {}),
+            "reflection_result": state.get("reflection_result", {}),
+            "agent_outputs": state.get("agent_outputs", {}),
+            "quality_score": state.get("quality_score", 0.0),
+            "conflicts": state.get("conflicts", []),
+            "causal_chain": state.get("causal_chain", []),
+            "timestamp": state.get("timestamp", datetime.utcnow().isoformat())
         }
         
+        # Persist to Vector DB
+        if self.history_store:
+            try:
+                self.history_store.save_analysis(analysis)
+                logger.info("[PersistAnalysis] Analysis saved successfully")
+            except Exception as e:
+                logger.error(f"[PersistAnalysis] Failed to save analysis: {e}")
+        else:
+            logger.warning("[PersistAnalysis] HistoryStore not available, skipping persistence")
+        
         return state
 
 
-class SelfReflectionAgent:
-    """
-    Audits reasoning quality and detects conflicts.
-    
-    Day 3: Pass-through with logging
-    Day 4: Actual reflection logic
-    """
-    def __call__(self, state: MVPState) -> MVPState:
-        logger.info("[SelfReflectionAgent] Auditing agent outputs...")
-        
-        agent_outputs = state.get("agent_outputs", {})
-        
-        # Simple quality check
-        for agent_name, output in agent_outputs.items():
-            confidence = output.get("confidence", 0)
-            if confidence < 0.5:
-                logger.warning(
-                    f"  ⚠️  {agent_name} has low confidence: {confidence:.2%}"
-                )
-        
-        logger.info("[SelfReflectionAgent] Reflection complete (Day 3 stub)")
-        
-        # Day 4: Will implement conflict detection
-        return state
-
+# ==================== HITL GATE (Day 5) ====================
 
 class HITLGate:
     """
     Human-in-the-loop approval gate.
+    Traced via Langfuse @observe decorator.
     
     Day 3: Pass-through with logging
     Day 5: Actual HITL logic
     """
+    @observe(name="hitl_gate")
     def __call__(self, state: MVPState) -> MVPState:
         logger.info("[HITLGate] Human approval gate (Day 3 stub)")
         
@@ -192,6 +215,7 @@ def mark_agent_complete(agent_name: str):
 class AgentWrapper:
     """
     Wraps an agent to add state tracking.
+    Traced via Langfuse @observe decorator.
     
     Tracks which agents have completed for routing logic.
     """
@@ -199,6 +223,7 @@ class AgentWrapper:
         self.agent = agent
         self.agent_name = agent_name
     
+    @observe(name="agent_wrapper")
     def __call__(self, state: MVPState) -> MVPState:
         # Execute agent
         state = self.agent(state)
@@ -242,9 +267,14 @@ def build_graph() -> StateGraph:
     graph.add_node("marketing", AgentWrapper(MarketingAgent(), "marketing"))
     graph.add_node("support", AgentWrapper(SupportAgent(), "support"))
     
-    # Synthesis, reflection, HITL (Day 3 - stubs)
-    graph.add_node("synthesis", SynthesisNode())
+    # Synthesis and reflection (Day 4 - production implementations)
+    graph.add_node("synthesis", SynthesisAgent())
     graph.add_node("reflection", SelfReflectionAgent())
+    
+    # Persist analysis to Vector DB (Day 4)
+    graph.add_node("persist_analysis", PersistAnalysisNode())
+    
+    # HITL gate (Day 5 - stub)
     graph.add_node("hitl", HITLGate())
     
     logger.info("[Graph] All nodes added")
@@ -285,7 +315,8 @@ def build_graph() -> StateGraph:
     
     # Linear flow after synthesis
     graph.add_edge("synthesis", "reflection")
-    graph.add_edge("reflection", "hitl")
+    graph.add_edge("reflection", "persist_analysis")
+    graph.add_edge("persist_analysis", "hitl")
     graph.add_edge("hitl", END)
     
     logger.info("[Graph] All edges added")
@@ -296,9 +327,11 @@ def build_graph() -> StateGraph:
 
 # ==================== CONVENIENCE FUNCTION ====================
 
+@observe(name="run_graph")
 def run_graph(question: str) -> MVPState:
     """
     Run the complete graph with a question.
+    Traced via Langfuse @observe decorator.
     
     Args:
         question: User's input question
@@ -319,7 +352,8 @@ def run_graph(question: str) -> MVPState:
         "intent": "",
         "agents_to_call": [],
         "agent_outputs": {},
-        "agents_completed": []
+        "agents_completed": [],
+        "timestamp": datetime.utcnow().isoformat()
     }
     
     try:

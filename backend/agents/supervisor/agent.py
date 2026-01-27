@@ -2,6 +2,7 @@
 Supervisor Agent - Intent Detection and Routing
 
 Uses LLM to classify user intent and route to appropriate domain agents.
+All methods are traced via Langfuse for observability.
 """
 
 from backend.schemas.agent_output import AgentOutput
@@ -9,6 +10,7 @@ from .router import route_agents
 from ...settings import Settings
 from ...utils.prompt_loader import load_prompt
 from langchain_openai import AzureChatOpenAI
+from langfuse import observe
 from typing import Dict, Any, List
 import logging
 
@@ -22,6 +24,8 @@ class SupervisorAgent:
     - Deciding which domain agents to call
     - Passing shared context to agents
     - Collecting agent outputs
+    
+    All methods are traced via Langfuse.
     """
     
     VALID_INTENTS = {
@@ -43,15 +47,17 @@ class SupervisorAgent:
             )
             logger.info(
                 f"[SupervisorAgent] Initialized with model: "
-                f"{Settings.AGENT_MODELS['supervisor']}"
+                f"{Settings.AGENT_MODELS['supervisor']} and Langfuse tracing"
             )
         except Exception as e:
             logger.error(f"[SupervisorAgent] Failed to initialize LLM: {e}")
             raise
 
+    @observe(name="supervisor_detect_intent")
     def detect_intent(self, question: str) -> str:
         """
         Use LLM to classify user intent.
+        Traced via Langfuse @observe decorator.
         
         Args:
             question: User's question string
@@ -114,9 +120,11 @@ class SupervisorAgent:
             logger.error(f"[SupervisorAgent] Intent detection failed: {e}")
             raise RuntimeError(f"Intent detection failed: {e}")
 
+    @observe(name="supervisor_call")
     def __call__(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """
         Main execution method called by LangGraph.
+        Traced via Langfuse @observe decorator.
         
         Args:
             state: Current graph state containing at least 'question'

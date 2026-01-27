@@ -1,7 +1,11 @@
+from typing import List, Dict, Optional
 from pydantic import BaseModel, Field
-from typing import List
 
 class RootCause(BaseModel):
-    cause: str = Field(..., description="Root cause summary")
-    supporting_agents: List[str] = Field(..., description="Agents supporting this cause")
-    overall_confidence: float = Field(..., ge=0, le=1, description="Aggregated confidence")
+    root_cause: str = Field(..., description="Narrative summary of the root cause")
+    primary_cause: str = Field(..., description="Agent name of the primary cause")
+    contributing_causes: List[str] = Field(default_factory=list, description="List of contributing agent names")
+    confidence: float = Field(..., ge=0.0, le=1.0, description="Overall confidence score")
+    causal_chain: List[str] = Field(default_factory=list, description="Ordered list of agent names in causal chain")
+    evidence_summary: Dict[str, List[str]] = Field(default_factory=dict, description="Agent name to evidence list")
+    timestamp: Optional[str] = Field(None, description="Timestamp of analysis")

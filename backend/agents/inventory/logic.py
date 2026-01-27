@@ -29,17 +29,35 @@ def calculate_stockout_severity(inventory_data: Dict, baseline: Dict) -> float:
     return severity
 
 
-def identify_critical_products(inventory_data: Dict) -> List[int]:
+def identify_critical_products(inventory_data: Dict) -> List:
     """
-    Identify critical products (assumed to be low product_ids = high demand).
+    Identify critical products from stockout data.
+    
+    Handles both integer product IDs (where IDs 1-5 are critical)
+    and string SKUs (where any SKU is considered for the critical list).
     
     Returns:
-        List of critical product IDs
+        List of critical product identifiers
     """
     stockout_products = inventory_data.get('stockout_products', [])
     
-    # Simple heuristic: products 1-5 are "critical"
-    critical = [p for p in stockout_products if p <= 5]
+    if not stockout_products:
+        logger.info("[InventoryLogic] No stockout products to analyze")
+        return []
+    
+    # Check if we have integer IDs or string SKUs
+    if stockout_products and isinstance(stockout_products[0], int):
+        # Integer product IDs: products 1-5 are "critical"
+        critical = [p for p in stockout_products if p <= 5]
+    else:
+        # String SKUs or other identifiers: use critical_products field if available
+        critical_products_data = inventory_data.get('critical_products', [])
+        if critical_products_data:
+            # Extract SKUs from critical products list
+            critical = [p.get('sku', p) if isinstance(p, dict) else p for p in critical_products_data]
+        else:
+            # Fallback: treat all stockout products as potentially critical
+            critical = stockout_products[:5]  # Limit to top 5
     
     logger.info(f"[InventoryLogic] Critical products affected: {len(critical)}")
     return critical

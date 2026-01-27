@@ -2,12 +2,15 @@
 Base Agent Abstract Class
 
 Provides common functionality for all domain agents.
+All agent methods are traced via Langfuse for observability.
 """
 
 from abc import ABC, abstractmethod
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, Field
 from langchain_core.tools import StructuredTool
+from langfuse import observe
+from ..settings import Settings
 from ..utils.data_loader import DataLoader
 from ..utils.llm_formatter import LLMFormatter
 from ..schemas.agent_output import AgentOutput
@@ -54,11 +57,23 @@ class BaseAgent(ABC):
     - get_fallback_template()
     """
     
+    @staticmethod
+    def _is_jupyter() -> bool:
+        """Check if running in a Jupyter notebook."""
+        try:
+            from IPython import get_ipython
+            if get_ipython() is not None:
+                return True
+        except ImportError:
+            pass
+        return False
+    
     def __init__(
         self,
         agent_name: str,
         data_loader: Optional[DataLoader] = None,
-        llm_formatter: Optional[LLMFormatter] = None
+        llm_formatter: Optional[LLMFormatter] = None,
+        use_direct_loader: Optional[bool] = None
     ):
         """
         Initialize base agent.
@@ -67,12 +82,24 @@ class BaseAgent(ABC):
             agent_name: Name of the agent (sales, inventory, etc.)
             data_loader: Data loader instance (injected for testing)
             llm_formatter: LLM formatter instance (injected for testing)
+            use_direct_loader: Force direct database access (auto-detected if None)
         """
         self.agent_name = agent_name
-        self.data_loader = data_loader or DataLoader()
+        
+        # Auto-detect if we should use direct loader (Jupyter environment)
+        if use_direct_loader is None:
+            use_direct_loader = self._is_jupyter()
+        
+        # Initialize data loader with appropriate mode
+        if data_loader:
+            self.data_loader = data_loader
+        else:
+            self.data_loader = DataLoader(use_direct=use_direct_loader)
+        
         self.llm_formatter = llm_formatter or LLMFormatter(agent_name)
         
-        logger.info(f"[{self.agent_name}Agent] Initialized")
+        loader_type = "direct" if use_direct_loader else "MCP"
+        logger.info(f"[{self.agent_name}Agent] Initialized (loader: {loader_type})")
     
     @abstractmethod
     def load_data(self, context: AgentContext) -> Dict[str, Any]:
@@ -146,11 +173,13 @@ class BaseAgent(ABC):
             # Use fallback template
             return self.get_fallback_template().format(**analysis.metrics)
     
+    @observe(name="agent_execute")
     def execute(self, context: AgentContext) -> AgentOutput:
         """
         Execute the complete agent workflow.
         
         Orchestrates: load → analyze → format → output
+        Traced via Langfuse @observe decorator.
         
         Args:
             context: Agent context
@@ -195,9 +224,11 @@ class BaseAgent(ABC):
                 agent=self.agent_name
             )
     
+    @observe(name="agent_call")
     def __call__(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """
         Make agent callable for LangGraph integration.
+        Traced via Langfuse @observe decorator.
         
         Args:
             state: LangGraph state dictionary
@@ -223,6 +254,7 @@ class BaseAgent(ABC):
         
         return state
     
+    @observe(name="agent_as_tool")
     def as_tool(self) -> StructuredTool:
         """
         Convert agent to LangChain StructuredTool.
