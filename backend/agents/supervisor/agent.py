@@ -5,9 +5,9 @@ Uses LLM to classify user intent and route to appropriate domain agents.
 """
 
 from backend.schemas.agent_output import AgentOutput
-from backend.supervisor.router import route_agents
-from backend.settings import Settings
-from backend.utils.prompt_loader import load_prompt
+from .router import route_agents
+from ...settings import Settings
+from ...utils.prompt_loader import load_prompt
 from langchain_openai import AzureChatOpenAI
 from typing import Dict, Any, List
 import logging

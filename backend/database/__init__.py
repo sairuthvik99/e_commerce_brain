@@ -2,8 +2,8 @@
 Database package for PostgreSQL integration.
 """
 
-from backend.database.connection import get_engine, get_session
-from backend.database.models import (
+from .connection import get_engine, get_session
+from .models import (
     Orders,
     InventorySnapshots,
     MarketingCampaignsDaily,

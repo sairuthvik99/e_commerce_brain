@@ -95,13 +95,13 @@ class PromptLoader:
         Raises:
             FileNotFoundError: If prompt file doesn't exist
         """
-        # Construct file path: backend/{agent}/prompts/{task}.md
-        file_path = self.base_path / agent / "prompts" / f"{task}.md"
+        # Construct file path: backend/agents/{agent}/prompts/{task}.md
+        file_path = self.base_path / "agents" / agent / "prompts" / f"{task}.md"
         
         if not file_path.exists():
             raise FileNotFoundError(
                 f"Prompt file not found: {file_path}\n"
-                f"Expected location: backend/{agent}/prompts/{task}.md"
+                f"Expected location: backend/agents/{agent}/prompts/{task}.md"
             )
         
         with open(file_path, 'r', encoding='utf-8') as f:

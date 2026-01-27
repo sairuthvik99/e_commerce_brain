@@ -1,34 +1,35 @@
 """
 LangGraph Flow Definition
 
-Wires together the complete agentic system:
-- Supervisor (intent + routing)
-- Domain agents (parallel execution based on routing)
-- Synthesis
-- Self-reflection
-- HITL gate
+Wires together the complete agentic system using new BaseAgent architecture.
 
-ARCHITECTURE NOTE:
-- SupervisorAgent: Imported from supervisor/agent.py (production code)
-- BaseAgent: Defined here as DAY 2 STUB (will move to agents/ on Day 3)
-- SynthesisNode, SelfReflectionAgent, HITLGate: Stubs for Day 4-5
+Flow:
+    User Input → Supervisor → Domain Agents (sequential with data sharing) → 
+    Synthesis → Reflection → HITL → END
+
+Data Sharing Strategy:
+    Agents execute sequentially in priority order (inventory → sales → marketing → support)
+    so each agent can access previous agents' findings in their context.
 """
 
 from langgraph.graph import StateGraph, END
 from typing import Dict, Any, TypedDict, List
 from .settings import Settings
-from .schemas.agent_output import AgentOutput
 
-# --- PRODUCTION IMPORTS (Day 2+) ---
-from .supervisor.agent import SupervisorAgent  # ✅ Production agent
+from .agents.sales.agent import SalesAgent
+from .agents.inventory.agent import InventoryAgent
+from .agents.marketing.agent import MarketingAgent
+from .agents.support.agent import SupportAgent
 
-from langchain_openai import AzureChatOpenAI
+from .agents.supervisor.agent import SupervisorAgent
+
 import logging
 
 logger = logging.getLogger(__name__)
 
 
-# --- State Definition ---
+# ==================== STATE DEFINITION ====================
+
 class MVPState(TypedDict, total=False):
     """
     Canonical state that flows through the graph.
@@ -38,6 +39,7 @@ class MVPState(TypedDict, total=False):
         intent: Detected intent (e.g., 'sales_drop')
         agents_to_call: List of agent names to execute
         agent_outputs: Dict mapping agent name to AgentOutput
+        agents_completed: List of agents that have finished execution
         root_cause: Synthesized root cause (Day 4)
         action_proposal: Proposed action (Day 5)
         hitl_decision: Human decision (Day 5)
@@ -47,214 +49,253 @@ class MVPState(TypedDict, total=False):
     intent: str
     agents_to_call: List[str]
     agent_outputs: Dict[str, Dict[str, Any]]
+    agents_completed: List[str]
     root_cause: Dict[str, Any]
     action_proposal: Dict[str, Any]
     hitl_decision: Dict[str, Any]
     error: str
 
 
-# --- TEMPORARY STUB: BaseAgent (Day 2) ---
-# TODO (Day 3): Move to individual agent files:
-#   - backend/agents/sales/agent.py
-#   - backend/agents/inventory/agent.py
-#   - backend/agents/marketing/agent.py
-#   - backend/agents/support/agent.py
-class BaseAgent:
-    """
-    ⚠️ DAY 2 STUB: Temporary base class for domain agents.
-    
-    This will be replaced on Day 3 with individual agent implementations
-    that include real reasoning logic and mock data integration.
-    
-    For Day 2: Returns stub outputs to validate graph flow.
-    """
-    def __init__(self, agent_name: str):
-        self.agent_name = agent_name
-        try:
-            self.llm = AzureChatOpenAI(
-                api_key=Settings.DIAL_API_KEY,
-                azure_endpoint=Settings.AZURE_ENDPOINT,
-                api_version=Settings.API_VERSION,
-                model=Settings.AGENT_MODELS.get(agent_name, Settings.AGENT_MODELS["supervisor"]),
-            )
-            logger.info(f"[{self.agent_name}Agent] Initialized successfully")
-        except Exception as e:
-            logger.error(f"[{self.agent_name}Agent] Failed to initialize: {e}")
-            raise
-
-    def __call__(self, state: MVPState) -> MVPState:
-        """
-        Execute the agent's reasoning (Day 2: stub, Day 3: real logic).
-        """
-        try:
-            logger.info(f"[{self.agent_name}Agent] Executing...")
-            
-            # Day 2 Stub: Return placeholder output
-            output = AgentOutput(
-                finding=f"[STUB] {self.agent_name.capitalize()} agent detected potential issues.",
-                evidence=[f"{self.agent_name}_metric_1", f"{self.agent_name}_metric_2"],
-                confidence=0.85,
-                agent=self.agent_name
-            )
-            
-            # Store output in state
-            if "agent_outputs" not in state:
-                state["agent_outputs"] = {}
-            
-            state["agent_outputs"][self.agent_name] = output.dict()
-            
-            logger.info(
-                f"[{self.agent_name}Agent] Output: {output.finding} "
-                f"(confidence: {output.confidence})"
-            )
-            
-            return state
-        
-        except Exception as e:
-            logger.error(f"[{self.agent_name}Agent] Execution failed: {e}")
-            state["agent_outputs"][self.agent_name] = {
-                "finding": f"Error in {self.agent_name} agent",
-                "evidence": [],
-                "confidence": 0.0,
-                "agent": self.agent_name,
-                "error": str(e)
-            }
-            return state
-
-
-# --- TEMPORARY STUBS: Placeholder Nodes (Day 4-6) ---
-# TODO (Day 4): Move SynthesisNode to backend/supervisor/synthesis.py
-# TODO (Day 4): Move SelfReflectionAgent to backend/reflection/agent.py
-# TODO (Day 5): Move HITLGate to backend/hitl/gate.py
+# ==================== PLACEHOLDER NODES (Day 4-6) ====================
 
 class SynthesisNode:
     """
-    ⚠️ DAY 2 STUB: Synthesizes agent outputs into root cause.
+    Synthesizes agent outputs into root cause.
     
-    Day 2: Pass-through
-    Day 4: Will implement actual synthesis logic
+    Day 3: Pass-through with logging
+    Day 4: Actual synthesis logic
     """
     def __call__(self, state: MVPState) -> MVPState:
-        logger.info("[SynthesisNode] Passing state forward (Day 2 stub)")
-        # Day 4: Will implement root cause synthesis
+        logger.info("[SynthesisNode] Aggregating agent outputs...")
+        
+        agent_outputs = state.get("agent_outputs", {})
+        
+        # Log what we received
+        for agent_name, output in agent_outputs.items():
+            logger.info(
+                f"  → {agent_name}: {output.get('finding', 'N/A')[:80]}... "
+                f"(confidence: {output.get('confidence', 0):.2%})"
+            )
+        
+        logger.info("[SynthesisNode] Synthesis complete (Day 3 stub)")
+        
+        # Day 4: Will implement actual synthesis
+        state["root_cause"] = {
+            "summary": "Multiple issues detected across domains",
+            "agent_count": len(agent_outputs)
+        }
+        
         return state
 
 
 class SelfReflectionAgent:
     """
-    ⚠️ DAY 2 STUB: Audits reasoning quality and detects conflicts.
+    Audits reasoning quality and detects conflicts.
     
-    Day 2: Pass-through
-    Day 4: Will implement actual reflection logic
+    Day 3: Pass-through with logging
+    Day 4: Actual reflection logic
     """
     def __call__(self, state: MVPState) -> MVPState:
-        logger.info("[SelfReflectionAgent] Passing state forward (Day 2 stub)")
+        logger.info("[SelfReflectionAgent] Auditing agent outputs...")
+        
+        agent_outputs = state.get("agent_outputs", {})
+        
+        # Simple quality check
+        for agent_name, output in agent_outputs.items():
+            confidence = output.get("confidence", 0)
+            if confidence < 0.5:
+                logger.warning(
+                    f"  ⚠️  {agent_name} has low confidence: {confidence:.2%}"
+                )
+        
+        logger.info("[SelfReflectionAgent] Reflection complete (Day 3 stub)")
+        
         # Day 4: Will implement conflict detection
         return state
 
 
 class HITLGate:
     """
-    ⚠️ DAY 2 STUB: Human-in-the-loop approval gate.
+    Human-in-the-loop approval gate.
     
-    Day 2: Pass-through
-    Day 5: Will implement actual HITL logic
+    Day 3: Pass-through with logging
+    Day 5: Actual HITL logic
     """
     def __call__(self, state: MVPState) -> MVPState:
-        logger.info("[HITLGate] Passing state forward (Day 2 stub)")
-        # Day 5: Will implement approval logic
+        logger.info("[HITLGate] Human approval gate (Day 3 stub)")
+        
+        # Day 5: Will implement actual approval logic
+        state["hitl_decision"] = {
+            "approved": True,
+            "timestamp": None,
+            "note": "Auto-approved (Day 3)"
+        }
+        
         return state
 
 
-# --- Dynamic Routing Logic ---
-def route_to_agents(state: MVPState) -> List[str]:
+# ==================== ROUTING LOGIC ====================
+
+# Agent execution priority (for sequential data sharing)
+AGENT_PRIORITY = ["inventory", "sales", "marketing", "support"]
+
+
+def get_next_agent(state: MVPState) -> str:
     """
-    Determines which agents to call based on supervisor's routing decision.
+    Determine the next agent to execute.
+    
+    Executes agents sequentially in priority order to enable data sharing.
+    Each agent can see outputs from previously executed agents.
     
     Returns:
-        List of agent names to execute
+        Next agent name or "synthesis" if all done
     """
-    agents = state.get("agents_to_call", [])
-    logger.info(f"[Router] Routing to: {agents}")
+    agents_to_call = state.get("agents_to_call", [])
+    agents_completed = state.get("agents_completed", [])
     
-    # If no agents specified, skip to synthesis
-    if not agents:
-        return ["synthesis"]
+    if not agents_to_call:
+        logger.info("[Router] No agents to call, moving to synthesis")
+        return "synthesis"
     
-    return agents
+    # Find next agent in priority order that hasn't been completed
+    for agent in AGENT_PRIORITY:
+        if agent in agents_to_call and agent not in agents_completed:
+            logger.info(f"[Router] Next agent: {agent}")
+            return agent
+    
+    # All agents completed
+    logger.info("[Router] All agents completed, moving to synthesis")
+    return "synthesis"
 
 
-# --- Graph Construction ---
+def mark_agent_complete(agent_name: str):
+    """
+    Create a function that marks an agent as completed.
+    
+    Used to update state after each agent execution.
+    """
+    def marker(state: MVPState) -> MVPState:
+        if "agents_completed" not in state:
+            state["agents_completed"] = []
+        
+        if agent_name not in state["agents_completed"]:
+            state["agents_completed"].append(agent_name)
+            logger.info(f"[Router] Marked {agent_name} as complete")
+        
+        return state
+    
+    return marker
+
+
+# ==================== AGENT WRAPPERS (for state tracking) ====================
+
+class AgentWrapper:
+    """
+    Wraps an agent to add state tracking.
+    
+    Tracks which agents have completed for routing logic.
+    """
+    def __init__(self, agent, agent_name: str):
+        self.agent = agent
+        self.agent_name = agent_name
+    
+    def __call__(self, state: MVPState) -> MVPState:
+        # Execute agent
+        state = self.agent(state)
+        
+        # Mark as completed
+        if "agents_completed" not in state:
+            state["agents_completed"] = []
+        
+        if self.agent_name not in state["agents_completed"]:
+            state["agents_completed"].append(self.agent_name)
+        
+        return state
+
+
+# ==================== GRAPH CONSTRUCTION ====================
+
 def build_graph() -> StateGraph:
     """
     Builds the complete LangGraph flow.
     
     Flow:
-        User Input → Supervisor → Domain Agents (parallel) → 
+        User Input → Supervisor → 
+        [Inventory → Sales → Marketing → Support] (sequential with data sharing) →
         Synthesis → Reflection → HITL → END
+    
+    Returns:
+        Compiled StateGraph
     """
     graph = StateGraph(MVPState)
     
-    # Add nodes
-    logger.info("[Graph] Adding nodes...")
+    logger.info("[Graph] Building graph...")
     
-    # Production agent (imported)
-    graph.add_node("supervisor", SupervisorAgent())  # ✅ From supervisor/agent.py
+    # ==================== ADD NODES ====================
     
-    # Stub agents (defined in this file, Day 2 only)
-    graph.add_node("sales", BaseAgent("sales"))
-    graph.add_node("inventory", BaseAgent("inventory"))
-    graph.add_node("marketing", BaseAgent("marketing"))
-    graph.add_node("support", BaseAgent("support"))
+    # Supervisor (Day 2 - production)
+    graph.add_node("supervisor", SupervisorAgent())
     
-    # Stub nodes (defined in this file, will move later)
+    # Domain agents (Day 3 - production with data sharing)
+    graph.add_node("inventory", AgentWrapper(InventoryAgent(), "inventory"))
+    graph.add_node("sales", AgentWrapper(SalesAgent(), "sales"))
+    graph.add_node("marketing", AgentWrapper(MarketingAgent(), "marketing"))
+    graph.add_node("support", AgentWrapper(SupportAgent(), "support"))
+    
+    # Synthesis, reflection, HITL (Day 3 - stubs)
     graph.add_node("synthesis", SynthesisNode())
     graph.add_node("reflection", SelfReflectionAgent())
     graph.add_node("hitl", HITLGate())
     
-    # Entry point
+    logger.info("[Graph] All nodes added")
+    
+    # ==================== SET ENTRY POINT ====================
+    
     graph.set_entry_point("supervisor")
     
-    # Dynamic routing: Supervisor → Domain Agents (based on agents_to_call)
-    def supervisor_router(state: MVPState) -> str:
-        """
-        Routes from supervisor to first agent or directly to synthesis.
-        
-        For Day 2 MVP: Simple sequential routing.
-        Day 3+: Can be enhanced for true parallelism.
-        """
-        agents = state.get("agents_to_call", [])
-        if not agents:
-            return "synthesis"
-        # For now, route to first agent (will trigger chain)
-        return agents[0] if agents else "synthesis"
+    # ==================== ADD EDGES ====================
     
+    # Supervisor → First Agent (or synthesis if no agents)
     graph.add_conditional_edges(
         "supervisor",
-        supervisor_router,
+        get_next_agent,
         {
-            "sales": "sales",
             "inventory": "inventory",
+            "sales": "sales",
             "marketing": "marketing",
             "support": "support",
             "synthesis": "synthesis"
         }
     )
     
-    # All domain agents → synthesis
-    for agent in ["sales", "inventory", "marketing", "support"]:
-        graph.add_edge(agent, "synthesis")
+    # Each agent → Next Agent (or synthesis if done)
+    # This enables sequential execution with data sharing
+    for agent_name in AGENT_PRIORITY:
+        graph.add_conditional_edges(
+            agent_name,
+            get_next_agent,
+            {
+                "inventory": "inventory",
+                "sales": "sales",
+                "marketing": "marketing",
+                "support": "support",
+                "synthesis": "synthesis"
+            }
+        )
     
     # Linear flow after synthesis
     graph.add_edge("synthesis", "reflection")
     graph.add_edge("reflection", "hitl")
     graph.add_edge("hitl", END)
     
+    logger.info("[Graph] All edges added")
     logger.info("[Graph] Graph construction complete")
+    
     return graph.compile()
 
 
-# --- Convenience function ---
+# ==================== CONVENIENCE FUNCTION ====================
+
 def run_graph(question: str) -> MVPState:
     """
     Run the complete graph with a question.
@@ -264,8 +305,12 @@ def run_graph(question: str) -> MVPState:
     
     Returns:
         Final state after execution
+    
+    Example:
+        >>> final_state = run_graph("Why did sales drop yesterday?")
+        >>> print(final_state["agent_outputs"]["sales"]["finding"])
     """
-    logger.info(f"[Graph] Starting execution with question: {question}")
+    logger.info(f"[Graph] Starting execution with question: '{question}'")
     
     graph = build_graph()
     
@@ -273,14 +318,66 @@ def run_graph(question: str) -> MVPState:
         "question": question,
         "intent": "",
         "agents_to_call": [],
-        "agent_outputs": {}
+        "agent_outputs": {},
+        "agents_completed": []
     }
     
     try:
         final_state = graph.invoke(initial_state)
         logger.info("[Graph] Execution complete")
+        
+        # Log summary
+        logger.info(f"[Graph] Intent: {final_state.get('intent', 'N/A')}")
+        logger.info(f"[Graph] Agents called: {final_state.get('agents_to_call', [])}")
+        logger.info(f"[Graph] Agents completed: {final_state.get('agents_completed', [])}")
+        
         return final_state
+    
     except Exception as e:
-        logger.error(f"[Graph] Execution failed: {e}")
+        logger.error(f"[Graph] Execution failed: {e}", exc_info=True)
         initial_state["error"] = str(e)
         return initial_state
+
+
+def get_agent_findings(state: MVPState) -> Dict[str, str]:
+    """
+    Extract just the findings from agent outputs.
+    
+    Utility function for easier result access.
+    
+    Args:
+        state: Final state from graph execution
+    
+    Returns:
+        Dict mapping agent name to finding string
+    """
+    agent_outputs = state.get("agent_outputs", {})
+    return {
+        agent: output.get("finding", "No finding")
+        for agent, output in agent_outputs.items()
+    }
+
+
+def get_highest_confidence_agent(state: MVPState) -> tuple:
+    """
+    Get the agent with highest confidence.
+    
+    Utility function to identify most confident finding.
+    
+    Args:
+        state: Final state from graph execution
+    
+    Returns:
+        Tuple of (agent_name, confidence_score)
+    """
+    agent_outputs = state.get("agent_outputs", {})
+    
+    if not agent_outputs:
+        return (None, 0.0)
+    
+    highest = max(
+        agent_outputs.items(),
+        key=lambda x: x[1].get("confidence", 0)
+    )
+    
+    return (highest[0], highest[1].get("confidence", 0))
