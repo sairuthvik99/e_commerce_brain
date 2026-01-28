@@ -18,3 +18,5 @@ venv/
 Thumbs.db
 
 README.md
+
+logs/
