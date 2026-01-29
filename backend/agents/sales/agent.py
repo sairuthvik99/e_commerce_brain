@@ -1,123 +1,268 @@
 """
-Sales Agent Implementation
+Sales Agent Implementation (LLM-Driven)
 
-Analyzes revenue, orders, and AOV trends.
+Uses LangChain tools for LLM-driven sales analysis.
+The LLM decides what's happening based on data and question.
 """
 
-from typing import Dict, Any
-from ..base_agent import BaseAgent, AgentContext, AnalysisResult
-from .logic import (
-    calculate_revenue_drop,
-    calculate_order_drop,
-    calculate_aov_drop,
-    analyze_drop_cause,
-    calculate_confidence,
-    build_evidence
-)
+from typing import Dict, Any, Optional, List
+from langchain_openai import AzureChatOpenAI
+from langgraph.prebuilt import create_react_agent
+from langfuse import observe
+from pydantic import BaseModel, Field
+
+from backend.settings import Settings
+from backend.utils.data_loader import DataLoader
+from backend.schemas.agent_output import AgentOutput
+from .tools import get_sales_tools, SalesLLMAnalyzer
+
 import logging
+import json
 
 logger = logging.getLogger(__name__)
 
 
-class SalesAgent(BaseAgent):
+class SalesAgentContext(BaseModel):
+    """Context for sales agent execution."""
+    question: str = Field(description="User's question")
+    intent: str = Field(default="sales", description="Detected intent")
+    other_agent_outputs: Dict[str, Any] = Field(
+        default_factory=dict, 
+        description="Outputs from other agents"
+    )
+
+
+class SalesAgent:
     """
-    Sales domain agent.
+    LLM-Driven Sales Agent.
     
-    Analyzes:
-    - Revenue trends (yesterday vs 7-day average)
-    - Order count trends
-    - Average order value (AOV)
-    - Root cause of sales drops
+    Instead of hardcoded analysis logic, this agent:
+    1. Receives the user's question
+    2. Loads relevant data
+    3. Uses LLM with tools to analyze and answer
+    4. Returns only the LLM's response
+    
+    Supports two modes:
+    - Tool mode: Uses LangGraph agent with tools (for complex queries)
+    - Direct mode: Uses single LLM call (for simple queries)
     """
     
-    def __init__(self, **kwargs):
-        super().__init__(agent_name="sales", **kwargs)
-    
-    def load_data(self, context: AgentContext) -> Dict[str, Any]:
+    def __init__(
+        self,
+        use_tools: bool = True,
+        use_direct_loader: Optional[bool] = None
+    ):
         """
-        Load sales metrics from MCP server.
+        Initialize sales agent.
         
-        Returns:
-            Dict with yesterday/average revenue, orders, AOV
+        Args:
+            use_tools: Whether to use LangChain tools (vs direct LLM)
+            use_direct_loader: Force direct DB access (auto-detect if None)
         """
-        logger.info("[SalesAgent] Loading data via MCP...")
+        self.agent_name = "sales"
+        self.use_tools = use_tools
+        
+        # Initialize LLM
+        self.llm = AzureChatOpenAI(
+            api_key=Settings.DIAL_API_KEY,
+            azure_endpoint=Settings.AZURE_ENDPOINT,
+            api_version=Settings.API_VERSION,
+            model=Settings.AGENT_MODELS.get("sales", "gpt-4"),
+            temperature=0.2,
+        )
+        
+        # Initialize data loader
+        if use_direct_loader is None:
+            use_direct_loader = self._is_jupyter()
+        self.data_loader = DataLoader(use_direct=use_direct_loader)
+        
+        # Initialize LLM analyzer for direct mode
+        self.analyzer = SalesLLMAnalyzer()
+        
+        # Initialize tools and agent
+        if use_tools:
+            self._init_tool_agent()
+        
+        logger.info(f"[SalesAgent] Initialized (tools={use_tools})")
+    
+    @staticmethod
+    def _is_jupyter() -> bool:
+        """Check if running in Jupyter notebook."""
+        try:
+            from IPython import get_ipython
+            return get_ipython() is not None
+        except ImportError:
+            return False
+    
+    def _init_tool_agent(self):
+        """Initialize LangGraph agent with tools."""
+        tools = get_sales_tools()
+        
+        # Create system prompt
+        system_prompt = """You are a Sales Analysis Agent for an e-commerce business.
+Your job is to analyze sales data and answer user questions about revenue, orders, and AOV.
+
+Use the available tools to get the right analysis for the user's question.
+Select the most appropriate tool based on what the user is asking:
+- For general sales questions: use analyze_sales_performance
+- For comparisons: use compare_sales_periods  
+- For trend analysis: use analyze_sales_trend
+- For anomaly detection: use identify_sales_anomaly
+- For understanding drops: use identify_drop_cause
+- For regional analysis: use analyze_regional_performance
+- For summaries: use get_sales_summary
+
+After getting the tool result, provide a clear, concise answer to the user.
+Always include specific numbers and percentages in your response."""
+        
+        # Create LangGraph agent
+        self.agent = create_react_agent(
+            model=self.llm,
+            tools=tools,
+            prompt=system_prompt,
+        )
+        
+        logger.info("[SalesAgent] LangGraph agent initialized with tools")
+    
+    @observe(name="sales_agent_execute")
+    def execute(self, context: SalesAgentContext) -> AgentOutput:
+        """
+        Execute sales analysis.
+        
+        This is the main entry point that:
+        1. Takes the user's question
+        2. Uses LLM (with or without tools) to analyze
+        3. Returns structured output
+        
+        Args:
+            context: SalesAgentContext with question and other info
+            
+        Returns:
+            AgentOutput with finding, evidence, confidence
+        """
+        question = context.question
+        logger.info(f"[SalesAgent] Executing for question: {question}")
         
         try:
-            sales_data = self.data_loader.load_sales_data(days=7)
-            
-            logger.info(
-                f"[SalesAgent] Loaded: "
-                f"Revenue ${sales_data['yesterday_revenue']:.2f} vs "
-                f"${sales_data['avg_revenue']:.2f} avg"
-            )
-            
-            return sales_data
-        
+            if self.use_tools:
+                return self._execute_with_tools(question, context)
+            else:
+                return self._execute_direct(question, context)
+                
         except Exception as e:
-            logger.error(f"[SalesAgent] Data loading failed: {e}")
-            raise
+            logger.error(f"[SalesAgent] Execution failed: {e}")
+            return AgentOutput(
+                finding=f"Sales analysis failed: {str(e)}",
+                evidence=["error"],
+                confidence=0.0,
+                agent=self.agent_name
+            )
     
-    def analyze(self, data: Dict[str, Any], context: AgentContext) -> AnalysisResult:
-        """
-        Analyze sales data.
+    def _execute_with_tools(
+        self, 
+        question: str, 
+        context: SalesAgentContext
+    ) -> AgentOutput:
+        """Execute using LangGraph agent with tools."""
+        logger.info("[SalesAgent] Executing with tools...")
         
-        Calculates:
-        - Revenue drop %
-        - Order count drop %
-        - AOV drop %
-        - Primary cause (orders vs AOV)
-        - Confidence score
-        """
-        logger.info("[SalesAgent] Analyzing data...")
+        # Add context from other agents if available
+        input_text = question
+        if context.other_agent_outputs:
+            other_context = json.dumps(context.other_agent_outputs, indent=2, default=str)
+            input_text = f"{question}\n\nContext from other agents:\n{other_context}"
         
-        # Calculate metrics
-        revenue_drop = calculate_revenue_drop(data)
-        order_drop = calculate_order_drop(data)
-        aov_drop = calculate_aov_drop(data)
-        drop_cause = analyze_drop_cause(data)
+        # Run agent
+        messages = [{"role": "user", "content": input_text}]
+        result = self.agent.invoke({"messages": messages})
         
-        # Calculate confidence
-        confidence = calculate_confidence(revenue_drop, order_drop, aov_drop)
+        # Extract the last message (agent's response)
+        output_text = ""
+        evidence = ["llm_analysis", "tools_used"]
+        confidence = 0.85
         
-        # Prepare metrics dict
-        metrics = {
-            'revenue_drop_pct': revenue_drop,
-            'order_drop_pct': order_drop,
-            'aov_drop_pct': aov_drop,
-            'drop_cause': drop_cause,
-            'yesterday_revenue': data['yesterday_revenue'],
-            'avg_revenue': data['avg_revenue'],
-            'yesterday_orders': data['yesterday_orders'],
-            'avg_orders': data['avg_orders']
-        }
+        if "messages" in result:
+            # Get the last AI message
+            for msg in reversed(result["messages"]):
+                if hasattr(msg, "content") and msg.content:
+                    output_text = msg.content
+                    break
         
-        # Build evidence
-        evidence = build_evidence(data, metrics)
+        logger.info(f"[SalesAgent] Tool execution complete: {output_text[:100]}...")
         
-        logger.info(
-            f"[SalesAgent] Analysis complete: "
-            f"Revenue drop {revenue_drop:.1f}%, "
-            f"Confidence {confidence:.2%}"
-        )
-        
-        return AnalysisResult(
-            metrics=metrics,
+        return AgentOutput(
+            finding=output_text,
             evidence=evidence,
             confidence=confidence,
-            raw_data=data
+            agent=self.agent_name
         )
     
-    def get_fallback_template(self) -> str:
-        """Fallback template if LLM formatting fails."""
-        return (
-            "Sales dropped {revenue_drop_pct:.1f}% yesterday "
-            "with {drop_cause} as primary cause"
+    def _execute_direct(
+        self, 
+        question: str, 
+        context: SalesAgentContext
+    ) -> AgentOutput:
+        """Execute using direct LLM call (no tools)."""
+        logger.info("[SalesAgent] Executing direct LLM call...")
+        
+        # Load sales data
+        sales_data = self.data_loader.load_sales_data(days=7)
+        
+        # Analyze using LLM
+        result = self.analyzer.analyze(
+            question=question,
+            data=sales_data,
+            analysis_type="general_sales_performance",
+            additional_context=str(context.other_agent_outputs) if context.other_agent_outputs else None
         )
+        
+        # Extract structured response
+        finding = result.get("finding", "Unable to analyze sales data.")
+        evidence = result.get("evidence", ["llm_analysis"])
+        confidence = result.get("confidence", 0.75)
+        
+        return AgentOutput(
+            finding=finding,
+            evidence=evidence,
+            confidence=float(confidence),
+            agent=self.agent_name
+        )
+    
+    @observe(name="sales_agent_call")
+    def __call__(self, state: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        LangGraph-compatible call method.
+        
+        Args:
+            state: Graph state with question and other data
+            
+        Returns:
+            Updated state with agent output
+        """
+        context = SalesAgentContext(
+            question=state.get("question", ""),
+            intent=state.get("intent", "sales"),
+            other_agent_outputs=state.get("agent_outputs", {})
+        )
+        
+        output = self.execute(context)
+        
+        # Update state
+        if "agent_outputs" not in state:
+            state["agent_outputs"] = {}
+        state["agent_outputs"][self.agent_name] = output.model_dump()
+        
+        return state
     
     def get_tool_description(self) -> str:
-        """LangChain tool description."""
+        """Get description for this agent when used as a tool."""
         return (
             "Analyzes sales performance including revenue, order count, "
-            "and average order value. Identifies drops and trends compared "
-            "to 7-day baseline."
+            "and average order value. Uses LLM to identify trends, anomalies, "
+            "and root causes of sales changes."
         )
+    
+    def get_available_tools(self) -> List[str]:
+        """Get list of available tool names."""
+        tools = get_sales_tools()
+        return [tool.name for tool in tools]
