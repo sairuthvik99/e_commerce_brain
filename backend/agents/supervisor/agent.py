@@ -29,10 +29,11 @@ class SupervisorAgent:
     """
     
     VALID_INTENTS = {
-        "sales_drop", 
-        "inventory_issue", 
-        "marketing_issue", 
-        "support_issue", 
+        "sales", 
+        "inventory", 
+        "marketing", 
+        "support", 
+        "general",
         "unknown"
     }
     

@@ -415,3 +415,7 @@ def get_highest_confidence_agent(state: MVPState) -> tuple:
     )
     
     return (highest[0], highest[1].get("confidence", 0))
+
+
+# Alias for backward compatibility
+create_graph = build_graph

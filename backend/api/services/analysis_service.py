@@ -50,9 +50,9 @@ class AnalysisService:
             bool: True if LangGraph can be used
         """
         try:
-            from backend.graph import create_graph
-            # Try to create the graph
-            graph = create_graph()
+            from backend.graph import build_graph
+            # Try to build the graph
+            graph = build_graph()
             return True
         except Exception as e:
             logger.warning(f"LangGraph not available: {e}")
@@ -212,10 +212,9 @@ class AnalysisService:
                 "timestamp": datetime.utcnow().isoformat()
             })
             
-            # Always use mock analysis for now until graph is properly integrated
-            # You can change this once your graph.py is ready
-            logger.info(f"Running mock analysis for job {job_id}")
-            await self._run_mock_analysis(job_id, job.question)
+            # Always use real LangGraph workflow
+            logger.info(f"Running LangGraph workflow for job {job_id}")
+            await self._run_langgraph_workflow(job_id, job.question, job.context)
             
             # Mark as completed
             await self.job_manager.update_job_status(job_id, JobStatus.COMPLETED)
@@ -257,10 +256,71 @@ class AnalysisService:
             question: The business question
             context: Optional context
         """
-        # This will be implemented when graph.py is properly set up
-        # For now, fall back to mock analysis
-        logger.warning("LangGraph workflow not yet implemented, using mock")
-        await self._run_mock_analysis(job_id, question)
+        import asyncio
+        from concurrent.futures import ThreadPoolExecutor
+        
+        try:
+            from backend.graph import run_graph
+            
+            # Run LangGraph in a thread pool since it's synchronous
+            loop = asyncio.get_event_loop()
+            with ThreadPoolExecutor() as executor:
+                final_state = await loop.run_in_executor(
+                    executor, 
+                    run_graph, 
+                    question
+                )
+            
+            # Check for errors in the graph execution
+            if final_state.get("error"):
+                raise RuntimeError(f"Graph execution error: {final_state['error']}")
+            
+            # Extract results from final state
+            agent_outputs = final_state.get("agent_outputs", {})
+            root_cause = final_state.get("root_cause", {})
+            reflection_result = final_state.get("reflection_result", {})
+            
+            # Update job with agent findings
+            for agent_name, output in agent_outputs.items():
+                try:
+                    agent_type = AgentType(agent_name)
+                    summary = output.get("finding", "Analysis completed") if isinstance(output, dict) else str(output)
+                    
+                    await self.job_manager.start_agent(job_id, agent_type)
+                    await self._notify_progress(job_id, "agent_started", {
+                        "agent": agent_name,
+                        "timestamp": datetime.utcnow().isoformat()
+                    })
+                    
+                    await self.job_manager.complete_agent(
+                        job_id,
+                        agent_type,
+                        findings=output if isinstance(output, dict) else {"output": output},
+                        summary=summary[:200] if summary else None
+                    )
+                    await self._notify_progress(job_id, "agent_completed", {
+                        "agent": agent_name,
+                        "summary": summary[:100] if summary else None,
+                        "timestamp": datetime.utcnow().isoformat()
+                    })
+                except ValueError:
+                    # Skip non-standard agent names
+                    logger.debug(f"Skipping non-standard agent: {agent_name}")
+            
+            # Set root cause
+            if root_cause:
+                await self.job_manager.set_root_cause(job_id, root_cause)
+            
+            # Set reflection
+            if reflection_result:
+                await self.job_manager.set_reflection(job_id, reflection_result)
+            
+            logger.info(f"LangGraph workflow completed for job {job_id}")
+            
+        except Exception as e:
+            logger.error(f"LangGraph workflow failed for job {job_id}: {e}")
+            # Re-raise the exception instead of falling back to mock
+            raise RuntimeError(f"LangGraph workflow failed: {e}")
     
     async def _run_mock_analysis(self, job_id: str, question: str) -> None:
         """

@@ -116,7 +116,7 @@ class AnalysisRequest(BaseModel):
     class Config:
         json_schema_extra = {
             "example": {
-                "question": "Why did sales drop 40% yesterday compared to last week?",
+                "question": "Summarize the last week sales",
                 "context": {
                     "time_range": "last_7_days",
                     "priority": "high",

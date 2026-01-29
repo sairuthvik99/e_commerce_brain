@@ -15,11 +15,13 @@ logger = logging.getLogger(__name__)
 VALID_AGENTS = ["sales", "inventory", "marketing", "support"]
 
 # Routing map: intent -> list of agents
+# Using broader intent categories that map to agent names
 ROUTING_MAP = {
-    "sales_drop": ["sales", "inventory", "marketing", "support"],
-    "inventory_issue": ["inventory", "sales"],
-    "marketing_issue": ["marketing", "sales"],
-    "support_issue": ["support", "sales"],
+    "sales": ["sales"],
+    "inventory": ["inventory"],
+    "marketing": ["marketing"],
+    "support": ["support"],
+    "general": ["sales", "inventory", "marketing", "support"],
 }
 
 
