@@ -1,12 +1,14 @@
 """
 Test script for LLM-driven Sales and Supervisor agents.
 
-Run this script to verify the new tools-based implementation works correctly.
+Run this script to verify:
+- Sales agent uses tools for LLM-driven analysis
+- Supervisor agent uses simple LLM-based intent detection (no tools)
 """
 
 import logging
 from backend.agents.sales import SalesAgent, SalesAgentContext, get_sales_tools
-from backend.agents.supervisor import SupervisorAgent, get_supervisor_tools
+from backend.agents.supervisor import SupervisorAgent
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(name)s - %(levelname)s - %(message)s')
@@ -21,18 +23,6 @@ def test_sales_tools():
     
     tools = get_sales_tools()
     print(f"\n[OK] Found {len(tools)} sales tools:")
-    for tool in tools:
-        print(f"  - {tool.name}: {tool.description[:60]}...")
-
-
-def test_supervisor_tools():
-    """Test that supervisor tools are properly defined."""
-    print("\n" + "="*60)
-    print("Testing Supervisor Tools")
-    print("="*60)
-    
-    tools = get_supervisor_tools()
-    print(f"\n[OK] Found {len(tools)} supervisor tools:")
     for tool in tools:
         print(f"  - {tool.name}: {tool.description[:60]}...")
 
@@ -64,13 +54,13 @@ def test_sales_agent_direct_mode():
 
 
 def test_supervisor_intent_detection():
-    """Test supervisor intent detection."""
+    """Test supervisor intent detection (simple LLM-based, no tools)."""
     print("\n" + "="*60)
-    print("Testing Supervisor Intent Detection")
+    print("Testing Supervisor Intent Detection (Simple LLM Mode)")
     print("="*60)
     
-    # Initialize supervisor without tools for simple test
-    supervisor = SupervisorAgent(use_tools=False)
+    # Initialize supervisor (no tools parameter - always simple mode)
+    supervisor = SupervisorAgent()
     
     test_questions = [
         "Why did sales drop yesterday?",
@@ -78,8 +68,7 @@ def test_supervisor_intent_detection():
         "How are campaigns performing?",
         "Are customer complaints up?",
         "What caused the issue?",
-        "Has this happened before?",
-        "Fix the problem.",
+        "Summarize yesterday's performance",
     ]
     
     print("\nTesting intent detection for various questions:")
@@ -122,9 +111,8 @@ def main():
     print("LLM-Driven Agent Tests")
     print("="*60)
     
-    # Test tool definitions
+    # Test tool definitions (only sales has tools)
     test_sales_tools()
-    test_supervisor_tools()
     
     # Test agent functionality
     print("\n\n>>> Running agent tests (requires database connection)...")
