@@ -1,52 +1,266 @@
 """
-Inventory Agent Implementation
+Inventory Agent Implementation (LLM-Driven)
 
-Analyzes stockout events and inventory levels.
+Uses LangChain tools for LLM-driven inventory analysis.
+The LLM decides what's happening based on data and question.
 """
 
-from typing import Dict, Any
-from backend.agents.base_agent import BaseAgent, AgentContext, AnalysisResult
-from backend.agents.inventory.logic import (
+from typing import Dict, Any, Optional, List
+from langchain_openai import AzureChatOpenAI
+from langgraph.prebuilt import create_react_agent
+from langfuse import observe
+from pydantic import BaseModel, Field
+
+from backend.settings import Settings
+from backend.utils.data_loader import DataLoader
+from backend.schemas.agent_output import AgentOutput
+from .tools import get_inventory_tools, InventoryLLMAnalyzer
+from .logic import (
     calculate_stockout_severity,
     identify_critical_products,
     calculate_confidence,
     build_evidence
 )
+
 import logging
+import json
 
 logger = logging.getLogger(__name__)
 
 
-class InventoryAgent(BaseAgent):
+class InventoryAgentContext(BaseModel):
+    """Context for inventory agent execution."""
+    question: str = Field(description="User's question")
+    intent: str = Field(default="inventory", description="Detected intent")
+    other_agent_outputs: Dict[str, Any] = Field(
+        default_factory=dict, 
+        description="Outputs from other agents"
+    )
+
+
+class InventoryAgent:
     """
-    Inventory domain agent.
+    LLM-Driven Inventory Agent.
     
-    Analyzes:
-    - Stockout events (count, products affected)
-    - Severity compared to baseline
-    - Critical product impact
+    Instead of hardcoded analysis logic, this agent:
+    1. Receives the user's question
+    2. Loads relevant data
+    3. Uses LLM with tools to analyze and answer
+    4. Returns only the LLM's response
+    
+    Supports two modes:
+    - Tool mode: Uses LangGraph agent with tools (for complex queries)
+    - Direct mode: Uses single LLM call (for simple queries)
     """
     
-    def __init__(self, **kwargs):
-        super().__init__(agent_name="inventory", **kwargs)
-    
-    def load_data(self, context: AgentContext) -> Dict[str, Any]:
+    def __init__(
+        self,
+        use_tools: bool = True,
+        use_direct_loader: Optional[bool] = None
+    ):
         """
-        Load inventory data from MCP server.
+        Initialize inventory agent.
+        
+        Args:
+            use_tools: Whether to use LangChain tools (vs direct LLM)
+            use_direct_loader: Force direct DB access (auto-detect if None)
+        """
+        self.agent_name = "inventory"
+        self.use_tools = use_tools
+        
+        # Initialize LLM
+        self.llm = AzureChatOpenAI(
+            api_key=Settings.DIAL_API_KEY,
+            azure_endpoint=Settings.AZURE_ENDPOINT,
+            api_version=Settings.API_VERSION,
+            model=Settings.AGENT_MODELS.get("inventory", "gpt-4"),
+            temperature=0.2,
+        )
+        
+        # Initialize data loader
+        if use_direct_loader is None:
+            use_direct_loader = self._is_jupyter()
+        self.data_loader = DataLoader(use_direct=use_direct_loader)
+        
+        # Initialize LLM analyzer for direct mode
+        self.analyzer = InventoryLLMAnalyzer()
+        
+        # Initialize tools and agent
+        if use_tools:
+            self._init_tool_agent()
+        
+        logger.info(f"[InventoryAgent] Initialized (tools={use_tools})")
+    
+    @staticmethod
+    def _is_jupyter() -> bool:
+        """Check if running in Jupyter notebook."""
+        try:
+            from IPython import get_ipython
+            return get_ipython() is not None
+        except ImportError:
+            return False
+    
+    def _init_tool_agent(self):
+        """Initialize LangGraph agent with tools."""
+        tools = get_inventory_tools()
+        
+        # Create system prompt
+        system_prompt = """You are an Inventory Analysis Agent for an e-commerce business.
+Your job is to analyze inventory data and answer user questions about stockouts, inventory levels, and product availability.
+
+Use the available tools to get the right analysis for the user's question.
+Select the most appropriate tool based on what the user is asking:
+- For general inventory questions: use analyze_inventory_status
+- For stockout details: use analyze_stockout_events
+- For trend analysis: use analyze_stockout_trend
+- For critical products: use identify_critical_stockouts
+- For sales impact: use analyze_inventory_impact
+- For restock recommendations: use prioritize_restock
+- For severity comparison: use compare_stockout_severity
+- For summaries: use get_inventory_summary
+
+After getting the tool result, provide a clear, concise answer to the user.
+Always include specific numbers and severity multipliers in your response."""
+        
+        # Create LangGraph agent
+        self.agent = create_react_agent(
+            model=self.llm,
+            tools=tools,
+            prompt=system_prompt,
+        )
+        
+        logger.info("[InventoryAgent] LangGraph agent initialized with tools")
+    
+    @observe(name="inventory_agent_execute")
+    def execute(self, context: InventoryAgentContext) -> AgentOutput:
+        """
+        Execute inventory analysis.
+        
+        This is the main entry point that:
+        1. Takes the user's question
+        2. Uses LLM (with or without tools) to analyze
+        3. Returns structured output
+        
+        Args:
+            context: InventoryAgentContext with question and other info
+            
+        Returns:
+            AgentOutput with finding, evidence, confidence
+        """
+        question = context.question
+        logger.info(f"[InventoryAgent] Executing for question: {question}")
+        
+        try:
+            if self.use_tools:
+                return self._execute_with_tools(question, context)
+            else:
+                return self._execute_direct(question, context)
+                
+        except Exception as e:
+            logger.error(f"[InventoryAgent] Execution failed: {e}")
+            return self._create_error_output(str(e))
+    
+    def _execute_with_tools(
+        self, 
+        question: str, 
+        context: InventoryAgentContext
+    ) -> AgentOutput:
+        """Execute using LangGraph agent with tools."""
+        logger.info("[InventoryAgent] Executing with tools...")
+        
+        # Prepare input message
+        messages = [{"role": "user", "content": question}]
+        
+        # Run the agent
+        result = self.agent.invoke({"messages": messages})
+        
+        # Extract final response
+        final_message = result["messages"][-1]
+        response_text = final_message.content
+        
+        # Try to extract structured data from tool results
+        finding = response_text
+        evidence = ["tool_based_analysis"]
+        confidence = 0.85
+        
+        # Look for tool results in message history
+        for msg in result["messages"]:
+            if hasattr(msg, 'additional_kwargs') and 'tool_calls' in msg.additional_kwargs:
+                evidence.append("llm_tool_used")
+            if hasattr(msg, 'content') and isinstance(msg.content, str):
+                try:
+                    if '"finding"' in msg.content:
+                        parsed = json.loads(msg.content)
+                        if 'confidence' in parsed:
+                            confidence = parsed['confidence']
+                        if 'evidence' in parsed:
+                            evidence.extend(parsed['evidence'])
+                except (json.JSONDecodeError, TypeError):
+                    pass
+        
+        return AgentOutput(
+            agent=self.agent_name,
+            finding=finding,
+            evidence=list(set(evidence)),
+            confidence=confidence
+        )
+    
+    def _execute_direct(
+        self, 
+        question: str, 
+        context: InventoryAgentContext
+    ) -> AgentOutput:
+        """Execute using direct LLM call without tools."""
+        logger.info("[InventoryAgent] Executing direct (no tools)...")
+        
+        # Load data
+        inventory_data = self.data_loader.load_inventory_data()
+        baseline = self.data_loader.load_inventory_baseline(days=7)
+        
+        combined_data = {
+            **inventory_data,
+            "baseline": baseline
+        }
+        
+        # Use analyzer for LLM-driven analysis
+        result = self.analyzer.analyze(
+            question=question,
+            data=combined_data,
+            analysis_type="direct_query",
+            additional_context="Answer the user's question directly based on the data."
+        )
+        
+        return AgentOutput(
+            agent=self.agent_name,
+            finding=result.get("finding", "Analysis completed"),
+            evidence=result.get("evidence", ["direct_analysis"]),
+            confidence=result.get("confidence", 0.75)
+        )
+    
+    def _create_error_output(self, error: str) -> AgentOutput:
+        """Create error output for failed execution."""
+        return AgentOutput(
+            agent=self.agent_name,
+            finding=f"Inventory analysis failed: {error}",
+            evidence=["error"],
+            confidence=0.0
+        )
+    
+    # ==================== Legacy Methods for Backward Compatibility ====================
+    
+    def load_data(self, context: Optional[InventoryAgentContext] = None) -> Dict[str, Any]:
+        """
+        Load inventory data (legacy method for backward compatibility).
         
         Returns:
             Dict with stockout events and baseline
         """
-        logger.info("[InventoryAgent] Loading data via MCP...")
+        logger.info("[InventoryAgent] Loading data (legacy method)...")
         
         try:
-            # Get yesterday's stockouts
             stockouts = self.data_loader.load_inventory_data()
-            
-            # Get baseline for comparison
             baseline = self.data_loader.load_inventory_baseline(days=7)
             
-            # Combine data
             data = {
                 **stockouts,
                 'baseline': baseline
@@ -54,8 +268,8 @@ class InventoryAgent(BaseAgent):
             
             logger.info(
                 f"[InventoryAgent] Loaded: "
-                f"{stockouts['total_stockouts']} stockouts vs "
-                f"{baseline['avg_daily_stockouts']:.1f} avg"
+                f"{stockouts.get('total_stockouts', 0)} stockouts vs "
+                f"{baseline.get('avg_daily_stockouts', 0):.1f} avg"
             )
             
             return data
@@ -64,33 +278,26 @@ class InventoryAgent(BaseAgent):
             logger.error(f"[InventoryAgent] Data loading failed: {e}")
             raise
     
-    def analyze(self, data: Dict[str, Any], context: AgentContext) -> AnalysisResult:
+    def analyze_legacy(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Analyze inventory data.
+        Analyze inventory data using legacy logic (for backward compatibility).
         
-        Calculates:
-        - Stockout severity vs baseline
-        - Critical products affected
-        - Confidence score
+        Uses rule-based analysis instead of LLM.
         """
-        logger.info("[InventoryAgent] Analyzing data...")
+        logger.info("[InventoryAgent] Analyzing data (legacy)...")
         
         baseline = data.get('baseline', {})
         
-        # Calculate metrics
         severity = calculate_stockout_severity(data, baseline)
         critical_products = identify_critical_products(data)
-        
         total_stockouts = data.get('total_stockouts', 0)
         
-        # Calculate confidence
         confidence = calculate_confidence(
             severity=severity,
             critical_count=len(critical_products),
             total_stockouts=total_stockouts
         )
         
-        # Prepare metrics dict
         metrics = {
             'total_stockouts': total_stockouts,
             'avg_stockouts': baseline.get('avg_daily_stockouts', 0),
@@ -99,22 +306,14 @@ class InventoryAgent(BaseAgent):
             'critical_count': len(critical_products)
         }
         
-        # Build evidence
         evidence = build_evidence(data, metrics)
         
-        logger.info(
-            f"[InventoryAgent] Analysis complete: "
-            f"{total_stockouts} stockouts, "
-            f"{severity:.1f}x severity, "
-            f"Confidence {confidence:.2%}"
-        )
-        
-        return AnalysisResult(
-            metrics=metrics,
-            evidence=evidence,
-            confidence=confidence,
-            raw_data=data
-        )
+        return {
+            "metrics": metrics,
+            "evidence": evidence,
+            "confidence": confidence,
+            "raw_data": data
+        }
     
     def get_fallback_template(self) -> str:
         """Fallback template if LLM formatting fails."""
