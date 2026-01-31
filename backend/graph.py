@@ -23,6 +23,7 @@ from .agents.sales.agent import SalesAgent
 from .agents.inventory.agent import InventoryAgent
 from .agents.marketing.agent import MarketingAgent
 from .agents.support.agent import SupportAgent
+from .agents.general.agent import GeneralAgent
 from .agents.supervisor.agent import SupervisorAgent
 
 # Day 4: Synthesis and Reflection implementations
@@ -160,7 +161,8 @@ class HITLGate:
 # ==================== ROUTING LOGIC ====================
 
 # Agent execution priority (for sequential data sharing)
-AGENT_PRIORITY = ["inventory", "sales", "marketing", "support"]
+# General agent is last as it may need context from other agents
+AGENT_PRIORITY = ["inventory", "sales", "marketing", "support", "general"]
 
 
 def get_next_agent(state: MVPState) -> str:
@@ -246,7 +248,7 @@ def build_graph() -> StateGraph:
     
     Flow:
         User Input → Supervisor → 
-        [Inventory → Sales → Marketing → Support] (sequential with data sharing) →
+        [Inventory → Sales → Marketing → Support → General] (sequential with data sharing) →
         Synthesis → Reflection → HITL → END
     
     Returns:
@@ -266,6 +268,9 @@ def build_graph() -> StateGraph:
     graph.add_node("sales", AgentWrapper(SalesAgent(), "sales"))
     graph.add_node("marketing", AgentWrapper(MarketingAgent(), "marketing"))
     graph.add_node("support", AgentWrapper(SupportAgent(), "support"))
+    
+    # General agent (handles general/unknown intents)
+    graph.add_node("general", AgentWrapper(GeneralAgent(), "general"))
     
     # Synthesis and reflection (Day 4 - production implementations)
     graph.add_node("synthesis", SynthesisAgent())
@@ -294,6 +299,7 @@ def build_graph() -> StateGraph:
             "sales": "sales",
             "marketing": "marketing",
             "support": "support",
+            "general": "general",
             "synthesis": "synthesis"
         }
     )
@@ -309,6 +315,7 @@ def build_graph() -> StateGraph:
                 "sales": "sales",
                 "marketing": "marketing",
                 "support": "support",
+                "general": "general",
                 "synthesis": "synthesis"
             }
         )

@@ -9,6 +9,7 @@ from .sales.agent import SalesAgent
 from .inventory.agent import InventoryAgent
 from .marketing.agent import MarketingAgent
 from .support.agent import SupportAgent
+from .general.agent import GeneralAgent
 
 __all__ = [
     "BaseAgent",
@@ -17,5 +18,6 @@ __all__ = [
     "SalesAgent",
     "InventoryAgent",
     "MarketingAgent",
-    "SupportAgent"
+    "SupportAgent",
+    "GeneralAgent",
 ]

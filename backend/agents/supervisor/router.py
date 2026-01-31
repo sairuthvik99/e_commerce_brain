@@ -11,7 +11,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 # Valid agent names in the system
-VALID_AGENTS = ["sales", "inventory", "marketing", "support"]
+VALID_AGENTS = ["sales", "inventory", "marketing", "support", "general"]
 
 # Valid intent categories
 VALID_INTENTS = [
@@ -28,15 +28,15 @@ ROUTING_MAP = {
     "marketing": ["marketing"],
     "support": ["support"],
     
-    # Multi-domain intents
-    "general": ["sales", "inventory", "marketing", "support"],
+    # Multi-domain intents - route to general agent
+    "general": ["general"],
     
     # Special intents (may or may not need domain agents)
     "memory": [],  # Memory queries handled by supervisor
     "action": ["sales", "inventory", "marketing", "support"],  # Need context for actions
     
-    # Fallback
-    "unknown": [],
+    # Unknown intents - route to general agent for best-effort handling
+    "unknown": ["general"],
 }
 
 
@@ -51,11 +51,14 @@ def route_agents(intent: str) -> List[str]:
         List of agent names to call
     
     Examples:
-        >>> route_agents("sales_drop")
-        ["sales", "inventory", "marketing", "support"]
+        >>> route_agents("sales")
+        ["sales"]
+        
+        >>> route_agents("general")
+        ["general"]
         
         >>> route_agents("unknown")
-        []
+        ["general"]
     """
     if not intent:
         logger.warning("[Router] Empty intent provided, returning no agents")
