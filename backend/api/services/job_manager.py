@@ -70,6 +70,7 @@ class JobManager:
         AgentType.SALES,
         AgentType.MARKETING,
         AgentType.SUPPORT,
+        AgentType.GENERAL,
         AgentType.SYNTHESIS,
         AgentType.REFLECTION,
     ]

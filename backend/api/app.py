@@ -15,7 +15,7 @@ from loguru import logger
 from backend.api.config import get_api_settings, APISettings
 from backend.api.routes import api_router
 from backend.api.middleware.error_handler import setup_error_handlers
-
+from backend.graph import get_graph_manager
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator:
@@ -50,6 +50,18 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
         # Vector DB initialization
         logger.info("Initializing vector database connection...")
         # await init_vector_db()  # Uncomment when vector_db module is ready
+        
+        # Pre-initialize the LangGraph (singleton pattern)
+        # This ensures graph and all agents are built once at startup
+        logger.info("Initializing LangGraph and agents...")
+        try:
+            graph_manager = get_graph_manager()
+            if graph_manager.graph:
+                logger.info("✅ LangGraph initialized successfully")
+            else:
+                logger.warning("⚠️ LangGraph initialization returned None")
+        except Exception as e:
+            logger.warning(f"⚠️ LangGraph initialization failed: {e}")
         
         logger.info("✅ All services initialized successfully")
         

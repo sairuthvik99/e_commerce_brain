@@ -39,6 +39,7 @@ class AgentType(str, Enum):
     SALES = "sales"
     MARKETING = "marketing"
     SUPPORT = "support"
+    GENERAL = "general"
     SYNTHESIS = "synthesis"
     REFLECTION = "reflection"
 

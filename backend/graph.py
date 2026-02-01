@@ -14,7 +14,7 @@ Data Sharing Strategy:
 """
 
 from langgraph.graph import StateGraph, END
-from typing import Dict, Any, TypedDict, List
+from typing import Dict, Any, TypedDict, List, Optional
 from datetime import datetime
 from langfuse import observe
 from .settings import Settings
@@ -34,6 +34,7 @@ from .schemas.root_cause import RootCause
 from .schemas.reflection_result import ReflectionResult
 
 import logging
+import threading
 
 logger = logging.getLogger(__name__)
 
@@ -165,6 +166,150 @@ class HITLGate:
 AGENT_PRIORITY = ["inventory", "sales", "marketing", "support", "general"]
 
 
+# ==================== GRAPH MANAGER (Singleton) ====================
+
+class GraphManager:
+    """
+    Singleton manager for the LangGraph instance.
+    
+    Ensures the graph and all agents are initialized only once
+    and reused across all requests. Thread-safe implementation.
+    """
+    _instance: Optional['GraphManager'] = None
+    _lock: threading.Lock = threading.Lock()
+    _graph = None
+    _initialized: bool = False
+    
+    def __new__(cls) -> 'GraphManager':
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = super().__new__(cls)
+        return cls._instance
+    
+    def __init__(self):
+        # Only initialize once
+        if not GraphManager._initialized:
+            with GraphManager._lock:
+                if not GraphManager._initialized:
+                    logger.info("[GraphManager] Initializing singleton instance...")
+                    self._build_graph()
+                    GraphManager._initialized = True
+                    logger.info("[GraphManager] Singleton initialization complete")
+    
+    def _build_graph(self) -> None:
+        """Build and cache the compiled graph."""
+        graph = StateGraph(MVPState)
+        
+        logger.info("[GraphManager] Building graph...")
+        
+        # ==================== ADD NODES ====================
+        
+        # Supervisor (Day 2 - production)
+        graph.add_node("supervisor", SupervisorAgent())
+        
+        # Domain agents (Day 3 - production with data sharing)
+        graph.add_node("inventory", AgentWrapper(InventoryAgent(), "inventory"))
+        graph.add_node("sales", AgentWrapper(SalesAgent(), "sales"))
+        graph.add_node("marketing", AgentWrapper(MarketingAgent(), "marketing"))
+        graph.add_node("support", AgentWrapper(SupportAgent(), "support"))
+        
+        # General agent (handles general/unknown intents)
+        graph.add_node("general", AgentWrapper(GeneralAgent(), "general"))
+        
+        # Synthesis and reflection (Day 4 - production implementations)
+        graph.add_node("synthesis", SynthesisAgent())
+        graph.add_node("reflection", SelfReflectionAgent())
+        
+        # Persist analysis to Vector DB (Day 4)
+        graph.add_node("persist_analysis", PersistAnalysisNode())
+        
+        # HITL gate (Day 5 - stub)
+        graph.add_node("hitl", HITLGate())
+        
+        logger.info("[GraphManager] All nodes added")
+        
+        # ==================== SET ENTRY POINT ====================
+        
+        graph.set_entry_point("supervisor")
+        
+        # ==================== ADD EDGES ====================
+        
+        # Supervisor → First Agent (or synthesis if no agents)
+        graph.add_conditional_edges(
+            "supervisor",
+            get_next_agent,
+            {
+                "inventory": "inventory",
+                "sales": "sales",
+                "marketing": "marketing",
+                "support": "support",
+                "general": "general",
+                "synthesis": "synthesis"
+            }
+        )
+        
+        # Each agent → Next Agent (or synthesis if done)
+        # This enables sequential execution with data sharing
+        for agent_name in AGENT_PRIORITY:
+            graph.add_conditional_edges(
+                agent_name,
+                get_next_agent,
+                {
+                    "inventory": "inventory",
+                    "sales": "sales",
+                    "marketing": "marketing",
+                    "support": "support",
+                    "general": "general",
+                    "synthesis": "synthesis"
+                }
+            )
+        
+        # Linear flow after synthesis
+        graph.add_edge("synthesis", "reflection")
+        graph.add_edge("reflection", "persist_analysis")
+        graph.add_edge("persist_analysis", "hitl")
+        graph.add_edge("hitl", END)
+        
+        logger.info("[GraphManager] All edges added")
+        
+        GraphManager._graph = graph.compile()
+        logger.info("[GraphManager] Graph compilation complete")
+    
+    @property
+    def graph(self):
+        """Get the compiled graph instance."""
+        return GraphManager._graph
+    
+    @classmethod
+    def is_initialized(cls) -> bool:
+        """Check if the graph manager has been initialized."""
+        return cls._initialized
+    
+    @classmethod
+    def reset(cls) -> None:
+        """
+        Reset the singleton (mainly for testing purposes).
+        
+        Warning: This will cause re-initialization on next access.
+        """
+        with cls._lock:
+            cls._instance = None
+            cls._graph = None
+            cls._initialized = False
+            logger.info("[GraphManager] Singleton reset")
+
+
+def get_graph_manager() -> GraphManager:
+    """
+    Get the singleton GraphManager instance.
+    
+    Returns:
+        GraphManager: The singleton instance
+    """
+    return GraphManager()
+
+
 def get_next_agent(state: MVPState) -> str:
     """
     Determine the next agent to execute.
@@ -246,6 +391,9 @@ def build_graph() -> StateGraph:
     """
     Builds the complete LangGraph flow.
     
+    Uses singleton GraphManager to ensure agents and graph are 
+    initialized only once and reused across all requests.
+    
     Flow:
         User Input → Supervisor → 
         [Inventory → Sales → Marketing → Support → General] (sequential with data sharing) →
@@ -254,82 +402,8 @@ def build_graph() -> StateGraph:
     Returns:
         Compiled StateGraph
     """
-    graph = StateGraph(MVPState)
-    
-    logger.info("[Graph] Building graph...")
-    
-    # ==================== ADD NODES ====================
-    
-    # Supervisor (Day 2 - production)
-    graph.add_node("supervisor", SupervisorAgent())
-    
-    # Domain agents (Day 3 - production with data sharing)
-    graph.add_node("inventory", AgentWrapper(InventoryAgent(), "inventory"))
-    graph.add_node("sales", AgentWrapper(SalesAgent(), "sales"))
-    graph.add_node("marketing", AgentWrapper(MarketingAgent(), "marketing"))
-    graph.add_node("support", AgentWrapper(SupportAgent(), "support"))
-    
-    # General agent (handles general/unknown intents)
-    graph.add_node("general", AgentWrapper(GeneralAgent(), "general"))
-    
-    # Synthesis and reflection (Day 4 - production implementations)
-    graph.add_node("synthesis", SynthesisAgent())
-    graph.add_node("reflection", SelfReflectionAgent())
-    
-    # Persist analysis to Vector DB (Day 4)
-    graph.add_node("persist_analysis", PersistAnalysisNode())
-    
-    # HITL gate (Day 5 - stub)
-    graph.add_node("hitl", HITLGate())
-    
-    logger.info("[Graph] All nodes added")
-    
-    # ==================== SET ENTRY POINT ====================
-    
-    graph.set_entry_point("supervisor")
-    
-    # ==================== ADD EDGES ====================
-    
-    # Supervisor → First Agent (or synthesis if no agents)
-    graph.add_conditional_edges(
-        "supervisor",
-        get_next_agent,
-        {
-            "inventory": "inventory",
-            "sales": "sales",
-            "marketing": "marketing",
-            "support": "support",
-            "general": "general",
-            "synthesis": "synthesis"
-        }
-    )
-    
-    # Each agent → Next Agent (or synthesis if done)
-    # This enables sequential execution with data sharing
-    for agent_name in AGENT_PRIORITY:
-        graph.add_conditional_edges(
-            agent_name,
-            get_next_agent,
-            {
-                "inventory": "inventory",
-                "sales": "sales",
-                "marketing": "marketing",
-                "support": "support",
-                "general": "general",
-                "synthesis": "synthesis"
-            }
-        )
-    
-    # Linear flow after synthesis
-    graph.add_edge("synthesis", "reflection")
-    graph.add_edge("reflection", "persist_analysis")
-    graph.add_edge("persist_analysis", "hitl")
-    graph.add_edge("hitl", END)
-    
-    logger.info("[Graph] All edges added")
-    logger.info("[Graph] Graph construction complete")
-    
-    return graph.compile()
+    manager = get_graph_manager()
+    return manager.graph
 
 
 # ==================== CONVENIENCE FUNCTION ====================
@@ -339,6 +413,9 @@ def run_graph(question: str) -> MVPState:
     """
     Run the complete graph with a question.
     Traced via Langfuse @observe decorator.
+    
+    Uses singleton GraphManager to reuse the compiled graph
+    instead of rebuilding it for every request.
     
     Args:
         question: User's input question
@@ -352,6 +429,7 @@ def run_graph(question: str) -> MVPState:
     """
     logger.info(f"[Graph] Starting execution with question: '{question}'")
     
+    # Get the cached graph from singleton manager
     graph = build_graph()
     
     initial_state: MVPState = {
