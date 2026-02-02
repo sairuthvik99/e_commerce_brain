@@ -13,6 +13,7 @@ from backend.api.routes.hitl import router as hitl_router
 from backend.api.routes.memory import router as memory_router
 from backend.api.routes.websocket import router as websocket_router
 from backend.api.routes.ecommerce import router as ecommerce_router
+from backend.api.routes.settings import router as settings_router
 
 # Create main API router
 api_router = APIRouter()
@@ -25,5 +26,6 @@ api_router.include_router(hitl_router, tags=["HITL - Human in the Loop"])
 api_router.include_router(memory_router, tags=["Memory"])
 api_router.include_router(websocket_router, tags=["WebSocket"])
 api_router.include_router(ecommerce_router, tags=["E-Commerce Data"])
+api_router.include_router(settings_router, tags=["Settings"])
 
 __all__ = ["api_router"]

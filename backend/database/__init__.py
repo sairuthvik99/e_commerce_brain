@@ -8,7 +8,8 @@ from .models import (
     InventorySnapshots,
     MarketingCampaignsDaily,
     SupportTickets,
-    DailyMetrics
+    DailyMetrics,
+    ConversationHistory
 )
 from .permissions import (
     AgentType,
@@ -29,6 +30,7 @@ __all__ = [
     "MarketingCampaignsDaily",
     "SupportTickets",
     "DailyMetrics",
+    "ConversationHistory",
     # Permissions
     "AgentType",
     "Tables",

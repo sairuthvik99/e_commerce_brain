@@ -5,9 +5,9 @@ load_dotenv()
 
 class Settings:
     DIAL_API_KEY: str = os.getenv("DIAL_API_KEY")
-    AZURE_ENDPOINT: str = "https://ai-proxy.lab.epam.com"
-    API_VERSION: str = "2024-02-01"
-    EMBEDDING_DEPLOYMENT = os.getenv("AZURE_EMBEDDING_DEPLOYMENT", "text-embedding-005")
+    AZURE_ENDPOINT: str = os.getenv("AZURE_ENDPOINT")
+    API_VERSION: str = os.getenv("API_VERSION")
+    EMBEDDING_DEPLOYMENT: str = os.getenv("AZURE_EMBEDDING_DEPLOYMENT")
 
     PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
     PINECONE_INDEX = os.getenv("PINECONE_INDEX", "ai-ops-history")
@@ -20,6 +20,7 @@ class Settings:
         "marketing": "gpt-4",
         "support": "gpt-4",
         "reflection": "gpt-4",
+        "general": "gpt-4",
     }
 
     @classmethod

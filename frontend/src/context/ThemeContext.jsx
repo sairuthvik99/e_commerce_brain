@@ -1,12 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
-// Theme variants
-export const UI_VARIANTS = {
-  CLAUDE: 'claude',
-  TWITTER: 'twitter',
-  STEBS: 'stebs'
-};
-
 // Theme modes
 export const THEME_MODES = {
   LIGHT: 'light',
@@ -18,15 +11,9 @@ const ThemeContext = createContext(null);
 
 /**
  * Theme Provider Component
- * Manages UI variant and dark/light mode
+ * Manages dark/light mode (STEB's UI only)
  */
 export function ThemeProvider({ children }) {
-  // Load saved preferences or use defaults
-  const [uiVariant, setUiVariant] = useState(() => {
-    const saved = localStorage.getItem('stebs-ui-variant');
-    return saved && Object.values(UI_VARIANTS).includes(saved) ? saved : UI_VARIANTS.STEBS;
-  });
-
   const [themeMode, setThemeMode] = useState(() => {
     const saved = localStorage.getItem('stebs-theme-mode');
     if (saved && Object.values(THEME_MODES).includes(saved)) {
@@ -39,11 +26,6 @@ export function ThemeProvider({ children }) {
     return THEME_MODES.LIGHT;
   });
 
-  // Save preferences to localStorage
-  useEffect(() => {
-    localStorage.setItem('stebs-ui-variant', uiVariant);
-  }, [uiVariant]);
-
   useEffect(() => {
     localStorage.setItem('stebs-theme-mode', themeMode);
   }, [themeMode]);
@@ -54,16 +36,15 @@ export function ThemeProvider({ children }) {
     
     // Remove all theme classes
     root.classList.remove('theme-light', 'theme-dark');
-    root.classList.remove('ui-claude', 'ui-twitter', 'ui-stebs');
     
-    // Add current theme classes
+    // Add current theme classes (always STEB's UI)
     root.classList.add(`theme-${themeMode}`);
-    root.classList.add(`ui-${uiVariant}`);
+    root.classList.add('ui-stebs');
     
     // Set data attributes for CSS selectors
     root.setAttribute('data-theme', themeMode);
-    root.setAttribute('data-ui', uiVariant);
-  }, [themeMode, uiVariant]);
+    root.setAttribute('data-ui', 'stebs');
+  }, [themeMode]);
 
   // Toggle dark/light mode
   const toggleThemeMode = useCallback(() => {
@@ -76,13 +57,10 @@ export function ThemeProvider({ children }) {
   const isDarkMode = themeMode === THEME_MODES.DARK;
 
   const value = {
-    uiVariant,
-    setUiVariant,
     themeMode,
     setThemeMode,
     toggleThemeMode,
     isDarkMode,
-    UI_VARIANTS,
     THEME_MODES
   };
 

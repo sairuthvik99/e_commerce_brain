@@ -176,6 +176,30 @@ class ApiService {
   async getMemoryInsights(jobId) {
     return this.request(API_CONFIG.ENDPOINTS.MEMORY_INSIGHTS(jobId));
   }
+
+  // ============================================================
+  // Settings Endpoints
+  // ============================================================
+
+  /**
+   * Change the LLM model for all agents
+   * @param {string} modelId - The model ID to set
+   * @returns {Promise<Object>} Response with updated model info
+   */
+  async changeAgentModel(modelId) {
+    return this.request(API_CONFIG.ENDPOINTS.CHANGE_MODEL, {
+      method: 'POST',
+      body: JSON.stringify({ model_id: modelId })
+    });
+  }
+
+  /**
+   * Get the current LLM model configuration
+   * @returns {Promise<Object>} Current model info
+   */
+  async getCurrentModel() {
+    return this.request(API_CONFIG.ENDPOINTS.GET_MODEL);
+  }
 }
 
 // Export singleton instance

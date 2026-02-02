@@ -8,6 +8,7 @@ from sqlalchemy import (
     Column, Integer, String, Numeric, Boolean, 
     TIMESTAMP, Date, Text, BigInteger
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime, date
 
@@ -114,3 +115,26 @@ class DailyMetrics(Base):
     
     def __repr__(self):
         return f"<DailyMetrics {self.date}: Revenue=${self.total_revenue}, Orders={self.total_orders}>"
+
+
+class ConversationHistory(Base):
+    """
+    Conversation history for short-term memory.
+    
+    Stores recent Q&A pairs for agent context.
+    Limited to last 10 entries for efficient memory management.
+    
+    Used by: Memory module (MemoryLoaderNode, MemorySaverNode)
+    """
+    __tablename__ = "conversation_history"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    question = Column(Text, nullable=False)
+    response = Column(Text, nullable=True)
+    intent = Column(Text, nullable=True, index=True)
+    agent_outputs = Column(JSONB, nullable=True)
+    root_cause = Column(JSONB, nullable=True)
+    timestamp = Column(TIMESTAMP, nullable=False, default=datetime.utcnow, index=True)
+    
+    def __repr__(self):
+        return f"<Conversation {self.id}: {self.question[:50]}...>"

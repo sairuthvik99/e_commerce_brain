@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
 import { ChatProvider } from './context/ChatContext';
+import { ModelProvider } from './context/ModelContext';
 import { Layout } from './components/layout';
 import HomePage from './pages/HomePage';
 import AgentPage from './pages/AgentPage';
@@ -13,16 +14,18 @@ import './styles/global.css';
 function App() {
   return (
     <ThemeProvider>
-      <ChatProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Layout />}>
-              <Route index element={<HomePage />} />
-              <Route path="agent" element={<AgentPage />} />
-            </Route>
-          </Routes>
-        </BrowserRouter>
-      </ChatProvider>
+      <ModelProvider>
+        <ChatProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Layout />}>
+                <Route index element={<HomePage />} />
+                <Route path="agent" element={<AgentPage />} />
+              </Route>
+            </Routes>
+          </BrowserRouter>
+        </ChatProvider>
+      </ModelProvider>
     </ThemeProvider>
   );
 }

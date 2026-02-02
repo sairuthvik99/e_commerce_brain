@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom';
-import { useTheme, UI_VARIANTS } from '../../context/ThemeContext';
+import { useTheme } from '../../context/ThemeContext';
 import { useChat } from '../../context/ChatContext';
+import { ModelSelector } from '../common';
 import PsychologyIcon from '@mui/icons-material/Psychology';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
@@ -11,17 +12,10 @@ import './Navbar.css';
 
 /**
  * Navbar Component
- * Contains navigation links, theme toggle, UI selector, and refresh button
+ * Contains navigation links, theme toggle, model selector, and refresh button
  */
 function Navbar() {
-  const { 
-    uiVariant, 
-    setUiVariant, 
-    themeMode, 
-    toggleThemeMode, 
-    isDarkMode 
-  } = useTheme();
-  
+  const { toggleThemeMode, isDarkMode } = useTheme();
   const { clearSession } = useChat();
 
   const handleRefresh = () => {
@@ -62,20 +56,8 @@ function Navbar() {
 
         {/* Right side controls */}
         <div className="navbar-controls">
-          {/* UI Variant Selector */}
-          <div className="control-group">
-            <label className="control-label" htmlFor="ui-select">UI</label>
-            <select 
-              id="ui-select"
-              className="ui-select"
-              value={uiVariant}
-              onChange={(e) => setUiVariant(e.target.value)}
-            >
-              <option value={UI_VARIANTS.STEBS}>STEB's</option>
-              <option value={UI_VARIANTS.CLAUDE}>Claude</option>
-              <option value={UI_VARIANTS.TWITTER}>Twitter</option>
-            </select>
-          </div>
+          {/* LLM Model Selector */}
+          <ModelSelector />
 
           {/* Theme Toggle */}
           <button 

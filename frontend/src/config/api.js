@@ -49,7 +49,11 @@ export const API_CONFIG = {
     
     // WebSocket
     WS_JOB: (jobId) => `/ws/jobs/${jobId}`,
-    WS_ALL: '/ws/jobs'
+    WS_ALL: '/ws/jobs',
+    
+    // Settings
+    CHANGE_MODEL: '/settings/model',
+    GET_MODEL: '/settings/model'
   },
   
   // Polling intervals

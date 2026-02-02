@@ -33,6 +33,10 @@ from .vector_db.history_store import HistoryStore
 from .schemas.root_cause import RootCause
 from .schemas.reflection_result import ReflectionResult
 
+# Memory modules
+from .memory.checkpointer import get_config, ShortTermMemory
+from .memory.long_term_memory import LongTermMemory
+
 import logging
 import threading
 
@@ -51,6 +55,7 @@ class MVPState(TypedDict, total=False):
         agents_to_call: List of agent names to execute
         agent_outputs: Dict mapping agent name to AgentOutput
         agents_completed: List of agents that have finished execution
+        conversation_history: Recent conversation context (last 10 messages)
         root_cause: Synthesized root cause (RootCause model)
         causal_chain: Ordered list of agents in causal chain
         reflection_result: Result of reflection audit (ReflectionResult model)
@@ -66,6 +71,8 @@ class MVPState(TypedDict, total=False):
     agents_to_call: List[str]
     agent_outputs: Dict[str, Dict[str, Any]]
     agents_completed: List[str]
+    conversation_history: List[Dict[str, Any]]  # Short-term memory
+    long_term_context: str  # Long-term memory context
     root_cause: Dict[str, Any]  # RootCause model
     causal_chain: List[str]
     reflection_result: Dict[str, Any]  # ReflectionResult model
@@ -166,6 +173,140 @@ class HITLGate:
 AGENT_PRIORITY = ["inventory", "sales", "marketing", "support", "general"]
 
 
+# ==================== MEMORY LOADER NODE ====================
+
+class MemoryLoaderNode:
+    """
+    Loads conversation history from short-term memory.
+    Injects recent context into the state for agents to use.
+    """
+    def __init__(self):
+        self._memory = None
+    
+    @property
+    def memory(self):
+        """Lazy initialization of memory store."""
+        if self._memory is None:
+            try:
+                self._memory = ShortTermMemory()
+            except Exception as e:
+                logger.warning(f"[MemoryLoader] Failed to initialize ShortTermMemory: {e}")
+        return self._memory
+    
+    @observe(name="memory_loader_node")
+    def __call__(self, state: MVPState) -> MVPState:
+        """Load conversation history into state."""
+        logger.info("[MemoryLoader] Loading conversation history...")
+        
+        if self.memory:
+            try:
+                history = self.memory.get_conversation_history(limit=10)
+                state["conversation_history"] = history
+                logger.info(f"[MemoryLoader] Loaded {len(history)} conversation entries")
+            except Exception as e:
+                logger.warning(f"[MemoryLoader] Failed to load history: {e}")
+                state["conversation_history"] = []
+        else:
+            state["conversation_history"] = []
+        
+        return state
+
+
+# ==================== LONG-TERM MEMORY LOADER NODE ====================
+
+class LongTermMemoryLoaderNode:
+    """
+    Loads long-term memory context (preferences, facts, knowledge).
+    Injects persistent context into the state for agents to use.
+    """
+    def __init__(self):
+        self._memory = None
+    
+    @property
+    def memory(self):
+        """Lazy initialization of long-term memory store."""
+        if self._memory is None:
+            try:
+                self._memory = LongTermMemory()
+            except Exception as e:
+                logger.warning(f"[LongTermMemoryLoader] Failed to initialize LongTermMemory: {e}")
+        return self._memory
+    
+    @observe(name="long_term_memory_loader_node")
+    def __call__(self, state: MVPState) -> MVPState:
+        """Load long-term memory context into state."""
+        logger.info("[LongTermMemoryLoader] Loading long-term memory...")
+        
+        if self.memory:
+            try:
+                context = self.memory.get_memory_context()
+                state["long_term_context"] = context
+                logger.info(f"[LongTermMemoryLoader] Loaded long-term context ({len(context)} chars)")
+            except Exception as e:
+                logger.warning(f"[LongTermMemoryLoader] Failed to load context: {e}")
+                state["long_term_context"] = ""
+        else:
+            state["long_term_context"] = ""
+        
+        return state
+
+
+# ==================== MEMORY SAVER NODE ====================
+
+class MemorySaverNode:
+    """
+    Saves the current conversation to short-term memory.
+    Called after synthesis to store the Q&A pair.
+    """
+    def __init__(self):
+        self._memory = None
+    
+    @property
+    def memory(self):
+        """Lazy initialization of memory store."""
+        if self._memory is None:
+            try:
+                self._memory = ShortTermMemory()
+            except Exception as e:
+                logger.warning(f"[MemorySaver] Failed to initialize ShortTermMemory: {e}")
+        return self._memory
+    
+    @observe(name="memory_saver_node")
+    def __call__(self, state: MVPState) -> MVPState:
+        """Save current conversation to memory."""
+        logger.info("[MemorySaver] Saving conversation to memory...")
+        
+        if self.memory:
+            try:
+                # Extract response from root_cause or synthesis
+                root_cause = state.get("root_cause", {})
+                response = root_cause.get("summary", "") or root_cause.get("description", "")
+                
+                # If no summary, try to build from agent outputs
+                if not response:
+                    agent_outputs = state.get("agent_outputs", {})
+                    findings = [
+                        output.get("finding", "")
+                        for output in agent_outputs.values()
+                        if output.get("finding")
+                    ]
+                    response = " | ".join(findings[:3]) if findings else "No response generated"
+                
+                self.memory.save_conversation(
+                    question=state.get("question", ""),
+                    response=response,
+                    intent=state.get("intent", ""),
+                    agent_outputs=state.get("agent_outputs"),
+                    root_cause=root_cause
+                )
+                logger.info("[MemorySaver] Conversation saved successfully")
+                
+            except Exception as e:
+                logger.error(f"[MemorySaver] Failed to save conversation: {e}")
+        
+        return state
+
+
 # ==================== GRAPH MANAGER (Singleton) ====================
 
 class GraphManager:
@@ -205,6 +346,10 @@ class GraphManager:
         
         # ==================== ADD NODES ====================
         
+        # Memory loaders (load both short-term and long-term memory at the start)
+        graph.add_node("load_memory", MemoryLoaderNode())
+        graph.add_node("load_long_term_memory", LongTermMemoryLoaderNode())
+        
         # Supervisor (Day 2 - production)
         graph.add_node("supervisor", SupervisorAgent())
         
@@ -221,6 +366,9 @@ class GraphManager:
         graph.add_node("synthesis", SynthesisAgent())
         graph.add_node("reflection", SelfReflectionAgent())
         
+        # Memory saver (saves conversation after synthesis)
+        graph.add_node("save_memory", MemorySaverNode())
+        
         # Persist analysis to Vector DB (Day 4)
         graph.add_node("persist_analysis", PersistAnalysisNode())
         
@@ -231,9 +379,14 @@ class GraphManager:
         
         # ==================== SET ENTRY POINT ====================
         
-        graph.set_entry_point("supervisor")
+        # Start with loading short-term memory
+        graph.set_entry_point("load_memory")
         
         # ==================== ADD EDGES ====================
+        
+        # Load memory → Load long-term memory → Supervisor
+        graph.add_edge("load_memory", "load_long_term_memory")
+        graph.add_edge("load_long_term_memory", "supervisor")
         
         # Supervisor → First Agent (or synthesis if no agents)
         graph.add_conditional_edges(
@@ -266,7 +419,8 @@ class GraphManager:
             )
         
         # Linear flow after synthesis
-        graph.add_edge("synthesis", "reflection")
+        graph.add_edge("synthesis", "save_memory")  # Save to memory after synthesis
+        graph.add_edge("save_memory", "reflection")
         graph.add_edge("reflection", "persist_analysis")
         graph.add_edge("persist_analysis", "hitl")
         graph.add_edge("hitl", END)
@@ -417,6 +571,9 @@ def run_graph(question: str) -> MVPState:
     Uses singleton GraphManager to reuse the compiled graph
     instead of rebuilding it for every request.
     
+    Flow includes short-term memory:
+        Load Memory → Supervisor → Agents → Synthesis → Save Memory → Reflection → HITL → END
+    
     Args:
         question: User's input question
     
@@ -438,6 +595,7 @@ def run_graph(question: str) -> MVPState:
         "agents_to_call": [],
         "agent_outputs": {},
         "agents_completed": [],
+        "conversation_history": [],  # Will be loaded by MemoryLoaderNode
         "timestamp": datetime.utcnow().isoformat()
     }
     
@@ -449,6 +607,7 @@ def run_graph(question: str) -> MVPState:
         logger.info(f"[Graph] Intent: {final_state.get('intent', 'N/A')}")
         logger.info(f"[Graph] Agents called: {final_state.get('agents_to_call', [])}")
         logger.info(f"[Graph] Agents completed: {final_state.get('agents_completed', [])}")
+        logger.info(f"[Graph] Conversation history size: {len(final_state.get('conversation_history', []))}")
         
         return final_state
     

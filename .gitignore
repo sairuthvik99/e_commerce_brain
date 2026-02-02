@@ -8,6 +8,8 @@ __pycache__/
 *.so
 .Python
 venv/
+.deepeval
+.pytest_cache
 
 # IDE
 .vscode/

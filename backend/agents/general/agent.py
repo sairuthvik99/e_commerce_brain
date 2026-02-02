@@ -67,7 +67,7 @@ class GeneralAgent:
             api_key=Settings.DIAL_API_KEY,
             azure_endpoint=Settings.AZURE_ENDPOINT,
             api_version=Settings.API_VERSION,
-            model=Settings.AGENT_MODELS.get("general", "gpt-4"),
+            model=Settings.AGENT_MODELS["general"],
             temperature=0.3,
         )
         

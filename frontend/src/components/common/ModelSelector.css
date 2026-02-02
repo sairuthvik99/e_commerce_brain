@@ -1,0 +1,103 @@
+/* Model Selector Styles */
+
+.model-selector {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.model-label {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 500;
+}
+
+.model-select-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.provider-indicator {
+  position: absolute;
+  left: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.model-select {
+  padding: 0.375rem 0.75rem 0.375rem 1.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--input-bg);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 140px;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  padding-right: 28px;
+}
+
+.model-select:hover {
+  border-color: var(--primary-color);
+}
+
+.model-select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px var(--primary-bg);
+}
+
+.model-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.model-select optgroup {
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--secondary-bg);
+  padding: 0.5rem;
+}
+
+.model-select option {
+  font-weight: 400;
+  color: var(--text-secondary);
+  padding: 0.5rem;
+  background: var(--input-bg);
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+  .model-label {
+    display: none;
+  }
+  
+  .model-select {
+    min-width: 120px;
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .model-select {
+    min-width: 100px;
+    padding: 0.25rem 0.5rem 0.25rem 1.5rem;
+    font-size: 0.75rem;
+  }
+  
+  .provider-indicator {
+    left: 6px;
+    width: 6px;
+    height: 6px;
+  }
+}
