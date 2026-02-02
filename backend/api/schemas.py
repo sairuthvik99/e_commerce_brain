@@ -108,7 +108,7 @@ class AnalysisRequest(BaseModel):
     """Request model for submitting an analysis."""
     question: str = Field(
         ..., 
-        min_length=10, 
+        min_length=1, 
         max_length=1000,
         description="Business question to analyze"
     )

@@ -320,3 +320,29 @@ Always include specific numbers, percentages, and categories in your response.""
             "Analyzes support ticket volume, sentiment distribution, and "
             "complaint categories. Identifies spikes and issues."
         )
+    
+    @observe(name="support_agent_call")
+    def __call__(self, state: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        LangGraph-compatible call method.
+        
+        Args:
+            state: Graph state with question and other data
+            
+        Returns:
+            Updated state with agent output
+        """
+        context = SupportAgentContext(
+            question=state.get("question", ""),
+            intent=state.get("intent", "support"),
+            other_agent_outputs=state.get("agent_outputs", {})
+        )
+        
+        output = self.execute(context)
+        
+        # Update state
+        if "agent_outputs" not in state:
+            state["agent_outputs"] = {}
+        state["agent_outputs"][self.agent_name] = output.model_dump()
+        
+        return state

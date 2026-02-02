@@ -11,7 +11,7 @@ from langchain_openai import AzureChatOpenAI
 from pydantic import BaseModel, Field
 from typing import Dict, Any, Optional, List
 from backend.settings import Settings
-from backend.utils.data_loader import DataLoader
+from backend.utils.agent_data_loader import create_agent_loader, AgentDataLoader
 from backend.utils.prompt_loader import load_prompt
 from langfuse import observe
 import json
@@ -65,6 +65,8 @@ class MarketingLLMAnalyzer:
     """
     Helper class to analyze marketing data using LLM.
     Sends data and question to LLM and returns structured response.
+    
+    Table Access: daily_metrics, marketing_campaigns_daily
     """
     
     def __init__(self):
@@ -75,8 +77,10 @@ class MarketingLLMAnalyzer:
             model=Settings.AGENT_MODELS.get("marketing", "gpt-4"),
             temperature=0.2,
         )
-        self.data_loader = DataLoader(use_direct=True)
-        logger.info("[MarketingLLMAnalyzer] Initialized")
+        # Use agent-specific data loader with restricted table access
+        # Marketing agent can only access: daily_metrics, marketing_campaigns_daily
+        self.data_loader = create_agent_loader("marketing")
+        logger.info(f"[MarketingLLMAnalyzer] Initialized with table access: {self.data_loader.allowed_tables}")
     
     @observe(name="marketing_llm_analyze")
     def analyze(

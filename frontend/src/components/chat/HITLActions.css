@@ -1,0 +1,536 @@
+/* HITL Actions Container */
+.hitl-actions-container {
+  margin-top: 1rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+}
+
+/* Header */
+.hitl-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.875rem 1rem;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.hitl-header h4 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.hitl-close-btn {
+  background: transparent;
+  border: none;
+  font-size: 1.25rem;
+  cursor: pointer;
+  color: var(--text-tertiary);
+  padding: 0.25rem;
+  line-height: 1;
+  transition: color var(--transition-fast);
+}
+
+.hitl-close-btn:hover {
+  color: var(--text-primary);
+}
+
+/* Load Section */
+.hitl-load-section {
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.hitl-load-section p {
+  margin: 0 0 1rem 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.hitl-load-btn {
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius-md);
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.hitl-load-btn:hover {
+  background: var(--primary-hover);
+}
+
+/* Loading State */
+.hitl-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 2rem;
+  color: var(--text-secondary);
+}
+
+.hitl-spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid var(--border-color);
+  border-top-color: var(--primary-color);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Error State */
+.hitl-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 2rem;
+  text-align: center;
+  color: var(--danger-color);
+}
+
+.hitl-retry-btn {
+  background: var(--danger-color);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: opacity var(--transition-fast);
+}
+
+.hitl-retry-btn:hover {
+  opacity: 0.9;
+}
+
+.hitl-inline-error {
+  padding: 0.75rem 1rem;
+  background: var(--danger-bg);
+  color: var(--danger-color);
+  font-size: 0.875rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* Submitted State */
+.hitl-submitted {
+  padding: 2rem;
+  text-align: center;
+}
+
+.hitl-success-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.hitl-submitted h5 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.1rem;
+  color: var(--success-color);
+}
+
+.hitl-submitted p {
+  margin: 0 0 1.5rem 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.hitl-done-btn {
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 0.75rem 2rem;
+  border-radius: var(--radius-md);
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.hitl-done-btn:hover {
+  background: var(--primary-hover);
+}
+
+/* Actions List */
+.hitl-actions-list {
+  padding: 1rem;
+  max-height: 400px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Action Card */
+.hitl-action-card {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.hitl-action-card:hover {
+  box-shadow: var(--shadow-sm);
+}
+
+.hitl-action-card.decision-accept {
+  border-color: var(--success-color);
+  background: var(--success-bg);
+}
+
+.hitl-action-card.decision-reject {
+  border-color: var(--danger-color);
+  background: var(--danger-bg);
+}
+
+/* Action Header */
+.action-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.action-icon {
+  font-size: 1.25rem;
+}
+
+.action-number {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.action-risk {
+  margin-left: auto;
+  padding: 0.125rem 0.5rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.7rem;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.risk-low {
+  background: var(--success-bg);
+  color: var(--success-color);
+}
+
+.risk-medium {
+  background: var(--warning-bg);
+  color: var(--warning-color);
+}
+
+.risk-high {
+  background: var(--danger-bg);
+  color: var(--danger-color);
+}
+
+.risk-unknown {
+  background: var(--secondary-bg);
+  color: var(--text-tertiary);
+}
+
+/* Action Type Badge */
+.action-type-badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  background: var(--primary-bg);
+  color: var(--primary-color);
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: capitalize;
+  margin-bottom: 0.75rem;
+}
+
+/* Action Description */
+.action-description {
+  margin: 0 0 0.75rem 0;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+/* Action Details */
+.action-details {
+  margin-bottom: 1rem;
+}
+
+.action-detail-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.detail-label {
+  font-weight: 500;
+  color: var(--text-tertiary);
+  min-width: 60px;
+}
+
+.detail-value {
+  color: var(--text-secondary);
+}
+
+/* Decision Buttons */
+.action-decision-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.decision-btn {
+  flex: 1;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+}
+
+.decision-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.decision-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.accept-btn:hover:not(:disabled) {
+  background: var(--success-bg);
+  border-color: var(--success-color);
+  color: var(--success-color);
+}
+
+.accept-btn.selected {
+  background: var(--success-color);
+  border-color: var(--success-color);
+  color: white;
+}
+
+.reject-btn:hover:not(:disabled) {
+  background: var(--danger-bg);
+  border-color: var(--danger-color);
+  color: var(--danger-color);
+}
+
+.reject-btn.selected {
+  background: var(--danger-color);
+  border-color: var(--danger-color);
+  color: white;
+}
+
+/* Footer */
+.hitl-footer {
+  padding: 1rem;
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.decision-summary {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.85rem;
+}
+
+.accepted-count {
+  color: var(--success-color);
+  font-weight: 500;
+}
+
+.rejected-count {
+  color: var(--danger-color);
+  font-weight: 500;
+}
+
+.pending-count {
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+
+.hitl-submit-btn {
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 0.625rem 1.25rem;
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.hitl-submit-btn:hover:not(:disabled) {
+  background: var(--primary-hover);
+}
+
+.hitl-submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Confirmation Modal */
+.hitl-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--z-modal);
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.hitl-modal {
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  width: 90%;
+  max-width: 400px;
+  box-shadow: var(--shadow-xl);
+  animation: slideUp 0.2s ease;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.modal-header {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.modal-header h5 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--text-primary);
+}
+
+.modal-body {
+  padding: 1.25rem;
+}
+
+.modal-body p {
+  margin: 0 0 0.75rem 0;
+  color: var(--text-primary);
+}
+
+.modal-action-desc {
+  background: var(--bg-primary);
+  padding: 0.75rem;
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  border-left: 3px solid var(--primary-color);
+}
+
+.modal-footer {
+  padding: 1rem 1.25rem;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.modal-cancel-btn {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: background var(--transition-fast);
+}
+
+.modal-cancel-btn:hover {
+  background: var(--bg-primary);
+}
+
+.modal-confirm-btn {
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: opacity var(--transition-fast);
+}
+
+.modal-confirm-btn:hover {
+  opacity: 0.9;
+}
+
+.confirm-accept {
+  background: var(--success-color);
+  color: white;
+}
+
+.confirm-reject {
+  background: var(--danger-color);
+  color: white;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .hitl-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .decision-summary {
+    justify-content: center;
+  }
+  
+  .hitl-submit-btn {
+    width: 100%;
+  }
+  
+  .action-decision-buttons {
+    flex-direction: column;
+  }
+}

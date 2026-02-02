@@ -11,7 +11,7 @@ from langchain_openai import AzureChatOpenAI
 from pydantic import BaseModel, Field
 from typing import Dict, Any, Optional, List
 from backend.settings import Settings
-from backend.utils.data_loader import DataLoader
+from backend.utils.agent_data_loader import create_agent_loader, AgentDataLoader
 from backend.utils.prompt_loader import load_prompt
 from langfuse import observe
 import json
@@ -70,6 +70,8 @@ class SupportLLMAnalyzer:
     """
     Helper class to analyze support data using LLM.
     Sends data and question to LLM and returns structured response.
+    
+    Table Access: daily_metrics, support_tickets
     """
     
     def __init__(self):
@@ -80,8 +82,10 @@ class SupportLLMAnalyzer:
             model=Settings.AGENT_MODELS.get("support", "gpt-4"),
             temperature=0.2,
         )
-        self.data_loader = DataLoader(use_direct=True)
-        logger.info("[SupportLLMAnalyzer] Initialized")
+        # Use agent-specific data loader with restricted table access
+        # Support agent can only access: daily_metrics, support_tickets
+        self.data_loader = create_agent_loader("support")
+        logger.info(f"[SupportLLMAnalyzer] Initialized with table access: {self.data_loader.allowed_tables}")
     
     @observe(name="support_llm_analyze")
     def analyze(

@@ -1,0 +1,99 @@
+import { NavLink } from 'react-router-dom';
+import { useTheme, UI_VARIANTS } from '../../context/ThemeContext';
+import { useChat } from '../../context/ChatContext';
+import './Navbar.css';
+
+/**
+ * Navbar Component
+ * Contains navigation links, theme toggle, UI selector, and refresh button
+ */
+function Navbar() {
+  const { 
+    uiVariant, 
+    setUiVariant, 
+    themeMode, 
+    toggleThemeMode, 
+    isDarkMode 
+  } = useTheme();
+  
+  const { clearSession } = useChat();
+
+  const handleRefresh = () => {
+    if (window.confirm('This will clear your current chat session. Continue?')) {
+      clearSession();
+    }
+  };
+
+  return (
+    <nav className="navbar">
+      <div className="navbar-container">
+        {/* Logo / Brand */}
+        <div className="navbar-brand">
+          <NavLink to="/" className="brand-link">
+            <span className="brand-icon">🧠</span>
+            <span className="brand-text">STEB's</span>
+          </NavLink>
+        </div>
+
+        {/* Navigation Links */}
+        <div className="navbar-nav">
+          <NavLink 
+            to="/" 
+            className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+          >
+            <span className="nav-icon">📊</span>
+            <span className="nav-text">Home</span>
+          </NavLink>
+          
+          <NavLink 
+            to="/agent" 
+            className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+          >
+            <span className="nav-icon">🤖</span>
+            <span className="nav-text">Agent</span>
+          </NavLink>
+        </div>
+
+        {/* Right side controls */}
+        <div className="navbar-controls">
+          {/* UI Variant Selector */}
+          <div className="control-group">
+            <label className="control-label" htmlFor="ui-select">UI</label>
+            <select 
+              id="ui-select"
+              className="ui-select"
+              value={uiVariant}
+              onChange={(e) => setUiVariant(e.target.value)}
+            >
+              <option value={UI_VARIANTS.STEBS}>STEB's</option>
+              <option value={UI_VARIANTS.CLAUDE}>Claude</option>
+              <option value={UI_VARIANTS.TWITTER}>Twitter</option>
+            </select>
+          </div>
+
+          {/* Theme Toggle */}
+          <button 
+            className="theme-toggle"
+            onClick={toggleThemeMode}
+            title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            aria-label="Toggle theme"
+          >
+            {isDarkMode ? '☀️' : '🌙'}
+          </button>
+
+          {/* Refresh Button */}
+          <button 
+            className="refresh-button"
+            onClick={handleRefresh}
+            title="Clear chat session"
+            aria-label="Refresh session"
+          >
+            🔄
+          </button>
+        </div>
+      </div>
+    </nav>
+  );
+}
+
+export default Navbar;

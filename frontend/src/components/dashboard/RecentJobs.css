@@ -1,0 +1,134 @@
+.recent-jobs-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.recent-jobs-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+}
+
+.recent-jobs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  overflow-y: auto;
+  max-height: 400px;
+}
+
+.recent-job-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem;
+  background: var(--secondary-bg);
+  border-radius: var(--radius-md);
+  transition: background 0.2s ease;
+}
+
+.recent-job-item:hover {
+  background: var(--hover-bg);
+}
+
+.job-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.job-question {
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.job-time {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+}
+
+.job-badge {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-sm);
+}
+
+.badge-success {
+  background: var(--success-bg);
+  color: var(--success-color);
+}
+
+.badge-info {
+  background: var(--info-bg);
+  color: var(--info-color);
+}
+
+.badge-warning {
+  background: var(--warning-bg);
+  color: var(--warning-color);
+}
+
+.badge-danger {
+  background: var(--danger-bg);
+  color: var(--danger-color);
+}
+
+.badge-secondary {
+  background: var(--secondary-bg);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+}
+
+/* Empty State */
+.recent-jobs-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 2rem;
+  color: var(--text-tertiary);
+}
+
+.empty-icon {
+  font-size: 2rem;
+  opacity: 0.5;
+}
+
+/* Skeleton */
+.recent-jobs-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.skeleton-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem;
+  background: var(--secondary-bg);
+  border-radius: var(--radius-md);
+}
+
+.skeleton-text {
+  width: 60%;
+  height: 20px;
+}
+
+.skeleton-badge {
+  width: 60px;
+  height: 24px;
+}

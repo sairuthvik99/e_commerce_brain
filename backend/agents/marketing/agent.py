@@ -323,3 +323,29 @@ Always include specific numbers, percentages, and currency values in your respon
             "Analyzes marketing campaign performance including conversions, "
             "spend, and efficiency. Identifies underperforming campaigns."
         )
+    
+    @observe(name="marketing_agent_call")
+    def __call__(self, state: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        LangGraph-compatible call method.
+        
+        Args:
+            state: Graph state with question and other data
+            
+        Returns:
+            Updated state with agent output
+        """
+        context = MarketingAgentContext(
+            question=state.get("question", ""),
+            intent=state.get("intent", "marketing"),
+            other_agent_outputs=state.get("agent_outputs", {})
+        )
+        
+        output = self.execute(context)
+        
+        # Update state
+        if "agent_outputs" not in state:
+            state["agent_outputs"] = {}
+        state["agent_outputs"][self.agent_name] = output.model_dump()
+        
+        return state

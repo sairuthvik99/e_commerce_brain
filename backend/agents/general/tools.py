@@ -10,7 +10,7 @@ from langchain_openai import AzureChatOpenAI
 from pydantic import BaseModel, Field
 from typing import Dict, Any, Optional, List
 from backend.settings import Settings
-from backend.utils.data_loader import DataLoader
+from backend.utils.agent_data_loader import create_agent_loader, AgentDataLoader
 from backend.utils.prompt_loader import load_prompt
 from langfuse import observe
 import json
@@ -91,6 +91,9 @@ class GeneralLLMAnalyzer:
     """
     Helper class to analyze cross-domain data using LLM.
     Sends comprehensive data and question to LLM and returns structured response.
+    
+    Table Access: ALL tables (orders, daily_metrics, inventory_snapshots, 
+                  marketing_campaigns_daily, support_tickets)
     """
     
     def __init__(self):
@@ -101,8 +104,10 @@ class GeneralLLMAnalyzer:
             model=Settings.AGENT_MODELS.get("general", "gpt-4"),
             temperature=0.3,
         )
-        self.data_loader = DataLoader(use_direct=True)
-        logger.info("[GeneralLLMAnalyzer] Initialized")
+        # Use agent-specific data loader with full table access
+        # General agent can access ALL tables for cross-domain analysis
+        self.data_loader = create_agent_loader("general")
+        logger.info(f"[GeneralLLMAnalyzer] Initialized with table access: {self.data_loader.allowed_tables}")
     
     @observe(name="general_llm_analyze")
     def analyze(

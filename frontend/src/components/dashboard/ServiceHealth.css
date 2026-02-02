@@ -1,0 +1,132 @@
+.service-health-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.service-health-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.service-health-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.overall-status {
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.status-healthy {
+  color: var(--success-color);
+}
+
+.status-degraded {
+  color: var(--warning-color);
+}
+
+.status-unhealthy {
+  color: var(--danger-color);
+}
+
+.status-unknown {
+  color: var(--text-tertiary);
+}
+
+.service-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  flex: 1;
+}
+
+.service-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem;
+  background: var(--secondary-bg);
+  border-radius: var(--radius-md);
+}
+
+.service-main {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.service-status-icon {
+  font-size: 0.75rem;
+}
+
+.service-name {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.service-details {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.service-latency {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-family: monospace;
+}
+
+.service-message {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  max-width: 150px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.service-health-footer {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.version-label {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+}
+
+/* Skeleton */
+.service-health-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.skeleton-service {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: var(--secondary-bg);
+  border-radius: var(--radius-md);
+}
+
+.skeleton-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+}
+
+.skeleton-name {
+  width: 100px;
+  height: 20px;
+}

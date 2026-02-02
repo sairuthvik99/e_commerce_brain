@@ -5,6 +5,7 @@ Endpoints for querying and managing analysis jobs.
 """
 
 from typing import Optional, Any, Dict
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
 from loguru import logger
@@ -307,4 +308,96 @@ async def get_job_progress(
         "status": job.status.value,
         "progress": progress.model_dump() if job.status == JobStatus.RUNNING else None,
         "updated_at": job.updated_at.isoformat()
+    }
+
+
+@router.get(
+    "/dashboard/stats",
+    summary="Get Dashboard Statistics",
+    description="Get comprehensive statistics for the dashboard including job metrics, agent performance, and trends",
+    responses={
+        200: {"description": "Dashboard statistics retrieved successfully"}
+    }
+)
+async def get_dashboard_stats(
+    job_manager: JobManager = Depends(get_job_manager)
+) -> Dict[str, Any]:
+    """
+    Get comprehensive dashboard statistics.
+    
+    Returns metrics for:
+    - Job counts by status
+    - Recent job activity
+    - Agent performance summary
+    - Success/failure rates
+    
+    Returns:
+        dict: Dashboard statistics
+    """
+    from datetime import timedelta
+    
+    stats = await job_manager.get_stats()
+    jobs, total = await job_manager.get_all_jobs(limit=100)
+    
+    # Calculate additional metrics
+    now = datetime.utcnow()
+    last_24h = now - timedelta(hours=24)
+    last_7d = now - timedelta(days=7)
+    
+    # Jobs in last 24 hours
+    jobs_24h = [j for j in jobs if j.created_at >= last_24h]
+    jobs_7d = [j for j in jobs if j.created_at >= last_7d]
+    
+    # Success rate calculation
+    completed_jobs = [j for j in jobs if j.status == JobStatus.COMPLETED]
+    failed_jobs = [j for j in jobs if j.status == JobStatus.FAILED]
+    total_finished = len(completed_jobs) + len(failed_jobs)
+    success_rate = (len(completed_jobs) / total_finished * 100) if total_finished > 0 else 0
+    
+    # Average completion time for completed jobs
+    completion_times = []
+    for job in completed_jobs:
+        if job.completed_at and job.created_at:
+            duration = (job.completed_at - job.created_at).total_seconds()
+            completion_times.append(duration)
+    
+    avg_completion_time = sum(completion_times) / len(completion_times) if completion_times else 0
+    
+    # Recent jobs summary (last 10)
+    recent_jobs = [
+        {
+            "job_id": j.job_id,
+            "question": j.question[:80] + "..." if len(j.question) > 80 else j.question,
+            "status": j.status.value,
+            "created_at": j.created_at.isoformat(),
+            "completed_at": j.completed_at.isoformat() if j.completed_at else None
+        }
+        for j in sorted(jobs, key=lambda x: x.created_at, reverse=True)[:10]
+    ]
+    
+    # Agent usage stats from completed jobs
+    agent_stats = {}
+    for job in completed_jobs:
+        for agent_name, findings in (job.agent_findings or {}).items():
+            if agent_name not in agent_stats:
+                agent_stats[agent_name] = {"count": 0, "has_findings": 0}
+            agent_stats[agent_name]["count"] += 1
+            if findings:
+                agent_stats[agent_name]["has_findings"] += 1
+    
+    return {
+        "summary": {
+            "total_jobs": stats["total_jobs"],
+            "jobs_last_24h": len(jobs_24h),
+            "jobs_last_7d": len(jobs_7d),
+            "success_rate": round(success_rate, 1),
+            "avg_completion_time_seconds": round(avg_completion_time, 2)
+        },
+        "by_status": stats["by_status"],
+        "recent_jobs": recent_jobs,
+        "agent_stats": agent_stats,
+        "system": {
+            "max_jobs": stats["max_jobs"],
+            "retention_hours": stats["retention_hours"]
+        }
     }

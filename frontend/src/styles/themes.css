@@ -1,0 +1,348 @@
+/**
+ * Global CSS Variables and Theme System
+ * Supports 3 UI variants: STEB's, Claude, Twitter
+ * Each with light and dark modes
+ */
+
+/* ============================================================
+   BASE VARIABLES (shared across all themes)
+   ============================================================ */
+
+:root {
+  /* Border Radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.15);
+
+  /* Transitions */
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.2s ease;
+  --transition-slow: 0.3s ease;
+
+  /* Z-Index Scale */
+  --z-dropdown: 100;
+  --z-modal: 200;
+  --z-toast: 300;
+  --z-tooltip: 400;
+}
+
+/* ============================================================
+   STEB's THEME (Custom - Default)
+   ============================================================ */
+
+/* STEB's Light Mode */
+:root[data-ui="stebs"][data-theme="light"],
+:root.ui-stebs.theme-light {
+  /* Primary Colors */
+  --primary-color: #6366f1;
+  --primary-hover: #4f46e5;
+  --primary-bg: rgba(99, 102, 241, 0.1);
+  
+  /* Background Colors */
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --card-bg: #ffffff;
+  --navbar-bg: rgba(255, 255, 255, 0.9);
+  
+  /* Text Colors */
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-tertiary: #94a3b8;
+  
+  /* Border Colors */
+  --border-color: #e2e8f0;
+  
+  /* Interactive States */
+  --hover-bg: #f1f5f9;
+  --secondary-bg: #f1f5f9;
+  --input-bg: #ffffff;
+  
+  /* Status Colors */
+  --success-color: #10b981;
+  --success-bg: rgba(16, 185, 129, 0.1);
+  --warning-color: #f59e0b;
+  --warning-bg: rgba(245, 158, 11, 0.1);
+  --danger-color: #ef4444;
+  --danger-bg: rgba(239, 68, 68, 0.1);
+  --danger-hover: #dc2626;
+  --info-color: #3b82f6;
+  --info-bg: rgba(59, 130, 246, 0.1);
+  
+  /* Brand */
+  --brand-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
+}
+
+/* STEB's Dark Mode */
+:root[data-ui="stebs"][data-theme="dark"],
+:root.ui-stebs.theme-dark {
+  /* Primary Colors */
+  --primary-color: #818cf8;
+  --primary-hover: #a5b4fc;
+  --primary-bg: rgba(129, 140, 248, 0.15);
+  
+  /* Background Colors */
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --card-bg: #1e293b;
+  --navbar-bg: rgba(15, 23, 42, 0.95);
+  
+  /* Text Colors */
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-tertiary: #64748b;
+  
+  /* Border Colors */
+  --border-color: #334155;
+  
+  /* Interactive States */
+  --hover-bg: #334155;
+  --secondary-bg: #1e293b;
+  --input-bg: #1e293b;
+  
+  /* Status Colors */
+  --success-color: #34d399;
+  --success-bg: rgba(52, 211, 153, 0.15);
+  --warning-color: #fbbf24;
+  --warning-bg: rgba(251, 191, 36, 0.15);
+  --danger-color: #f87171;
+  --danger-bg: rgba(248, 113, 113, 0.15);
+  --danger-hover: #ef4444;
+  --info-color: #60a5fa;
+  --info-bg: rgba(96, 165, 250, 0.15);
+  
+  /* Brand */
+  --brand-gradient: linear-gradient(135deg, #818cf8 0%, #a78bfa 50%, #c084fc 100%);
+  
+  /* Dark mode shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.4);
+}
+
+/* ============================================================
+   CLAUDE THEME
+   ============================================================ */
+
+/* Claude Light Mode */
+:root[data-ui="claude"][data-theme="light"],
+:root.ui-claude.theme-light {
+  /* Primary Colors - Claude's warm orange/brown */
+  --primary-color: #d97706;
+  --primary-hover: #b45309;
+  --primary-bg: rgba(217, 119, 6, 0.1);
+  
+  /* Background Colors - Warm cream/beige tones */
+  --bg-primary: #fffbf5;
+  --bg-secondary: #ffffff;
+  --card-bg: #ffffff;
+  --navbar-bg: rgba(255, 251, 245, 0.95);
+  
+  /* Text Colors */
+  --text-primary: #1c1917;
+  --text-secondary: #57534e;
+  --text-tertiary: #a8a29e;
+  
+  /* Border Colors */
+  --border-color: #e7e5e4;
+  
+  /* Interactive States */
+  --hover-bg: #faf5f0;
+  --secondary-bg: #f5f5f4;
+  --input-bg: #ffffff;
+  
+  /* Status Colors */
+  --success-color: #16a34a;
+  --success-bg: rgba(22, 163, 74, 0.1);
+  --warning-color: #ca8a04;
+  --warning-bg: rgba(202, 138, 4, 0.1);
+  --danger-color: #dc2626;
+  --danger-bg: rgba(220, 38, 38, 0.1);
+  --danger-hover: #b91c1c;
+  --info-color: #2563eb;
+  --info-bg: rgba(37, 99, 235, 0.1);
+  
+  /* Brand */
+  --brand-gradient: linear-gradient(135deg, #d97706 0%, #ea580c 100%);
+}
+
+/* Claude Dark Mode */
+:root[data-ui="claude"][data-theme="dark"],
+:root.ui-claude.theme-dark {
+  /* Primary Colors */
+  --primary-color: #fbbf24;
+  --primary-hover: #fcd34d;
+  --primary-bg: rgba(251, 191, 36, 0.15);
+  
+  /* Background Colors - Warm dark tones */
+  --bg-primary: #1c1917;
+  --bg-secondary: #292524;
+  --card-bg: #292524;
+  --navbar-bg: rgba(28, 25, 23, 0.95);
+  
+  /* Text Colors */
+  --text-primary: #fafaf9;
+  --text-secondary: #a8a29e;
+  --text-tertiary: #78716c;
+  
+  /* Border Colors */
+  --border-color: #44403c;
+  
+  /* Interactive States */
+  --hover-bg: #44403c;
+  --secondary-bg: #292524;
+  --input-bg: #292524;
+  
+  /* Status Colors */
+  --success-color: #4ade80;
+  --success-bg: rgba(74, 222, 128, 0.15);
+  --warning-color: #facc15;
+  --warning-bg: rgba(250, 204, 21, 0.15);
+  --danger-color: #f87171;
+  --danger-bg: rgba(248, 113, 113, 0.15);
+  --danger-hover: #ef4444;
+  --info-color: #60a5fa;
+  --info-bg: rgba(96, 165, 250, 0.15);
+  
+  /* Brand */
+  --brand-gradient: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+}
+
+/* ============================================================
+   TWITTER/X THEME
+   ============================================================ */
+
+/* Twitter Light Mode */
+:root[data-ui="twitter"][data-theme="light"],
+:root.ui-twitter.theme-light {
+  /* Primary Colors - Twitter Blue */
+  --primary-color: #1d9bf0;
+  --primary-hover: #1a8cd8;
+  --primary-bg: rgba(29, 155, 240, 0.1);
+  
+  /* Background Colors - Clean white */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f7f9f9;
+  --card-bg: #ffffff;
+  --navbar-bg: rgba(255, 255, 255, 0.85);
+  
+  /* Text Colors */
+  --text-primary: #0f1419;
+  --text-secondary: #536471;
+  --text-tertiary: #8b98a5;
+  
+  /* Border Colors */
+  --border-color: #eff3f4;
+  
+  /* Interactive States */
+  --hover-bg: #f7f7f7;
+  --secondary-bg: #eff3f4;
+  --input-bg: #ffffff;
+  
+  /* Status Colors */
+  --success-color: #00ba7c;
+  --success-bg: rgba(0, 186, 124, 0.1);
+  --warning-color: #ffad1f;
+  --warning-bg: rgba(255, 173, 31, 0.1);
+  --danger-color: #f4212e;
+  --danger-bg: rgba(244, 33, 46, 0.1);
+  --danger-hover: #dc1e29;
+  --info-color: #1d9bf0;
+  --info-bg: rgba(29, 155, 240, 0.1);
+  
+  /* Brand */
+  --brand-gradient: linear-gradient(135deg, #1d9bf0 0%, #1da1f2 100%);
+}
+
+/* Twitter Dark Mode */
+:root[data-ui="twitter"][data-theme="dark"],
+:root.ui-twitter.theme-dark {
+  /* Primary Colors */
+  --primary-color: #1d9bf0;
+  --primary-hover: #1a8cd8;
+  --primary-bg: rgba(29, 155, 240, 0.2);
+  
+  /* Background Colors - True black like Twitter */
+  --bg-primary: #000000;
+  --bg-secondary: #16181c;
+  --card-bg: #16181c;
+  --navbar-bg: rgba(0, 0, 0, 0.8);
+  
+  /* Text Colors */
+  --text-primary: #e7e9ea;
+  --text-secondary: #71767b;
+  --text-tertiary: #536471;
+  
+  /* Border Colors */
+  --border-color: #2f3336;
+  
+  /* Interactive States */
+  --hover-bg: #181818;
+  --secondary-bg: #16181c;
+  --input-bg: #16181c;
+  
+  /* Status Colors */
+  --success-color: #00ba7c;
+  --success-bg: rgba(0, 186, 124, 0.2);
+  --warning-color: #ffad1f;
+  --warning-bg: rgba(255, 173, 31, 0.2);
+  --danger-color: #f4212e;
+  --danger-bg: rgba(244, 33, 46, 0.2);
+  --danger-hover: #dc1e29;
+  --info-color: #1d9bf0;
+  --info-bg: rgba(29, 155, 240, 0.2);
+  
+  /* Brand */
+  --brand-gradient: linear-gradient(135deg, #1d9bf0 0%, #1da1f2 100%);
+}
+
+/* ============================================================
+   DEFAULT FALLBACK (STEB's Light)
+   ============================================================ */
+
+:root {
+  /* Primary Colors */
+  --primary-color: #6366f1;
+  --primary-hover: #4f46e5;
+  --primary-bg: rgba(99, 102, 241, 0.1);
+  
+  /* Background Colors */
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --card-bg: #ffffff;
+  --navbar-bg: rgba(255, 255, 255, 0.9);
+  
+  /* Text Colors */
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-tertiary: #94a3b8;
+  
+  /* Border Colors */
+  --border-color: #e2e8f0;
+  
+  /* Interactive States */
+  --hover-bg: #f1f5f9;
+  --secondary-bg: #f1f5f9;
+  --input-bg: #ffffff;
+  
+  /* Status Colors */
+  --success-color: #10b981;
+  --success-bg: rgba(16, 185, 129, 0.1);
+  --warning-color: #f59e0b;
+  --warning-bg: rgba(245, 158, 11, 0.1);
+  --danger-color: #ef4444;
+  --danger-bg: rgba(239, 68, 68, 0.1);
+  --danger-hover: #dc2626;
+  --info-color: #3b82f6;
+  --info-bg: rgba(59, 130, 246, 0.1);
+  
+  /* Brand */
+  --brand-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
+}
