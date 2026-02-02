@@ -3,6 +3,7 @@ Sales Agent Implementation (LLM-Driven)
 
 Uses LangChain tools for LLM-driven sales analysis.
 The LLM decides what's happening based on data and question.
+Supports cross-domain access for queries involving inventory/marketing correlation.
 """
 
 from typing import Dict, Any, Optional, List
@@ -12,7 +13,7 @@ from langfuse import observe
 from pydantic import BaseModel, Field
 
 from backend.settings import Settings
-from backend.utils.data_loader import DataLoader
+from backend.utils.agent_data_loader import AgentDataLoader
 from backend.schemas.agent_output import AgentOutput
 from .tools import get_sales_tools, SalesLLMAnalyzer
 
@@ -50,7 +51,8 @@ class SalesAgent:
     def __init__(
         self,
         use_tools: bool = True,
-        use_direct_loader: Optional[bool] = None
+        use_direct_loader: Optional[bool] = None,
+        allow_cross_domain: bool = True
     ):
         """
         Initialize sales agent.
@@ -58,9 +60,12 @@ class SalesAgent:
         Args:
             use_tools: Whether to use LangChain tools (vs direct LLM)
             use_direct_loader: Force direct DB access (auto-detect if None)
+            allow_cross_domain: Enable cross-domain data access for queries
+                              that require inventory/marketing correlation
         """
         self.agent_name = "sales"
         self.use_tools = use_tools
+        self.allow_cross_domain = allow_cross_domain
         
         # Initialize LLM
         self.llm = AzureChatOpenAI(
@@ -71,10 +76,14 @@ class SalesAgent:
             temperature=0.2,
         )
         
-        # Initialize data loader
+        # Initialize data loader with cross-domain access
         if use_direct_loader is None:
             use_direct_loader = self._is_jupyter()
-        self.data_loader = DataLoader(use_direct=use_direct_loader)
+        self.data_loader = AgentDataLoader(
+            agent_type=self.agent_name,
+            use_direct=use_direct_loader,
+            allow_cross_domain=allow_cross_domain
+        )
         
         # Initialize LLM analyzer for direct mode
         self.analyzer = SalesLLMAnalyzer()
@@ -83,7 +92,10 @@ class SalesAgent:
         if use_tools:
             self._init_tool_agent()
         
-        logger.info(f"[SalesAgent] Initialized (tools={use_tools})")
+        logger.info(
+            f"[SalesAgent] Initialized (tools={use_tools}, "
+            f"cross_domain={allow_cross_domain})"
+        )
     
     @staticmethod
     def _is_jupyter() -> bool:
@@ -98,9 +110,14 @@ class SalesAgent:
         """Initialize LangGraph agent with tools."""
         tools = get_sales_tools()
         
-        # Create system prompt
+        # Create system prompt with cross-domain awareness
         system_prompt = """You are a Sales Analysis Agent for an e-commerce business.
 Your job is to analyze sales data and answer user questions about revenue, orders, and AOV.
+
+You have access to:
+- Sales data (revenue, orders, AOV, regional performance)
+- Inventory data (for cross-domain queries about stockout impact on sales)
+- Marketing data (for cross-domain queries about campaign impact on sales)
 
 Use the available tools to get the right analysis for the user's question.
 Select the most appropriate tool based on what the user is asking:
@@ -111,6 +128,10 @@ Select the most appropriate tool based on what the user is asking:
 - For understanding drops: use identify_drop_cause
 - For regional analysis: use analyze_regional_performance
 - For summaries: use get_sales_summary
+
+For questions about root causes involving inventory or marketing:
+- Correlate sales drops with stockout events
+- Consider campaign performance impact on revenue
 
 After getting the tool result, provide a clear, concise answer to the user.
 Always include specific numbers and percentages in your response."""

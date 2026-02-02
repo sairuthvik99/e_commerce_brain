@@ -1,6 +1,12 @@
 import { NavLink } from 'react-router-dom';
 import { useTheme, UI_VARIANTS } from '../../context/ThemeContext';
 import { useChat } from '../../context/ChatContext';
+import PsychologyIcon from '@mui/icons-material/Psychology';
+import DashboardIcon from '@mui/icons-material/Dashboard';
+import SmartToyIcon from '@mui/icons-material/SmartToy';
+import LightModeIcon from '@mui/icons-material/LightMode';
+import DarkModeIcon from '@mui/icons-material/DarkMode';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import './Navbar.css';
 
 /**
@@ -30,7 +36,7 @@ function Navbar() {
         {/* Logo / Brand */}
         <div className="navbar-brand">
           <NavLink to="/" className="brand-link">
-            <span className="brand-icon">🧠</span>
+            <PsychologyIcon className="brand-icon" sx={{ fontSize: 28 }} />
             <span className="brand-text">STEB's</span>
           </NavLink>
         </div>
@@ -41,7 +47,7 @@ function Navbar() {
             to="/" 
             className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
           >
-            <span className="nav-icon">📊</span>
+            <DashboardIcon className="nav-icon" sx={{ fontSize: 20 }} />
             <span className="nav-text">Home</span>
           </NavLink>
           
@@ -49,7 +55,7 @@ function Navbar() {
             to="/agent" 
             className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
           >
-            <span className="nav-icon">🤖</span>
+            <SmartToyIcon className="nav-icon" sx={{ fontSize: 20 }} />
             <span className="nav-text">Agent</span>
           </NavLink>
         </div>
@@ -78,7 +84,7 @@ function Navbar() {
             title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
             aria-label="Toggle theme"
           >
-            {isDarkMode ? '☀️' : '🌙'}
+            {isDarkMode ? <LightModeIcon sx={{ fontSize: 20 }} /> : <DarkModeIcon sx={{ fontSize: 20 }} />}
           </button>
 
           {/* Refresh Button */}
@@ -88,7 +94,7 @@ function Navbar() {
             title="Clear chat session"
             aria-label="Refresh session"
           >
-            🔄
+            <RefreshIcon sx={{ fontSize: 20 }} />
           </button>
         </div>
       </div>

@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, createElement } from 'react';
 import { QUESTION_CATEGORIES } from '../../constants/questions';
+import CloseIcon from '@mui/icons-material/Close';
 import Card from '../common/Card';
 import './QuestionCards.css';
 
@@ -37,21 +38,26 @@ function QuestionCards({ onSelectQuestion }) {
       </div>
 
       <div className="question-cards-grid">
-        {Object.entries(QUESTION_CATEGORIES).map(([key, category]) => (
-          <Card 
-            key={key} 
-            className="question-category-card"
-            hoverable
-            onClick={() => handleCategoryClick(key)}
-          >
-            <span className="category-icon">{category.icon}</span>
-            <h3 className="category-title">{category.title}</h3>
-            <p className="category-description">{category.description}</p>
-            <span className="category-count">
-              {category.questions.length} questions
-            </span>
-          </Card>
-        ))}
+        {Object.entries(QUESTION_CATEGORIES).map(([key, category]) => {
+          const IconComponent = category.iconComponent;
+          return (
+            <Card 
+              key={key} 
+              className="question-category-card"
+              hoverable
+              onClick={() => handleCategoryClick(key)}
+            >
+              <span className="category-icon">
+                {IconComponent && <IconComponent sx={{ fontSize: 40 }} />}
+              </span>
+              <h3 className="category-title">{category.title}</h3>
+              <p className="category-description">{category.description}</p>
+              <span className="category-count">
+                {category.questions.length} questions
+              </span>
+            </Card>
+          );
+        })}
       </div>
 
       {/* Question Selection Modal */}
@@ -63,7 +69,8 @@ function QuestionCards({ onSelectQuestion }) {
           <div className="question-modal">
             <div className="question-modal-header">
               <span className="modal-icon">
-                {QUESTION_CATEGORIES[selectedCategory].icon}
+                {QUESTION_CATEGORIES[selectedCategory].iconComponent && 
+                  createElement(QUESTION_CATEGORIES[selectedCategory].iconComponent, { sx: { fontSize: 28 } })}
               </span>
               <h3>{QUESTION_CATEGORIES[selectedCategory].title}</h3>
               <button 
@@ -71,7 +78,7 @@ function QuestionCards({ onSelectQuestion }) {
                 onClick={handleCloseModal}
                 aria-label="Close modal"
               >
-                ✕
+                <CloseIcon sx={{ fontSize: 20 }} />
               </button>
             </div>
             

@@ -3,6 +3,7 @@ Marketing Agent Implementation (LLM-Driven)
 
 Uses LangChain tools for LLM-driven marketing and campaign analysis.
 The LLM decides what's happening based on data and question.
+Supports cross-domain access for queries involving sales correlation.
 """
 
 from typing import Dict, Any, Optional, List
@@ -12,7 +13,7 @@ from langfuse import observe
 from pydantic import BaseModel, Field
 
 from backend.settings import Settings
-from backend.utils.data_loader import DataLoader
+from backend.utils.agent_data_loader import AgentDataLoader
 from backend.schemas.agent_output import AgentOutput
 from .tools import get_marketing_tools, MarketingLLMAnalyzer
 from .logic import (
@@ -58,7 +59,8 @@ class MarketingAgent:
     def __init__(
         self,
         use_tools: bool = True,
-        use_direct_loader: Optional[bool] = None
+        use_direct_loader: Optional[bool] = None,
+        allow_cross_domain: bool = True
     ):
         """
         Initialize marketing agent.
@@ -66,9 +68,12 @@ class MarketingAgent:
         Args:
             use_tools: Whether to use LangChain tools (vs direct LLM)
             use_direct_loader: Force direct DB access (auto-detect if None)
+            allow_cross_domain: Enable cross-domain data access for queries
+                              that require sales data correlation
         """
         self.agent_name = "marketing"
         self.use_tools = use_tools
+        self.allow_cross_domain = allow_cross_domain
         
         # Initialize LLM
         self.llm = AzureChatOpenAI(
@@ -79,10 +84,14 @@ class MarketingAgent:
             temperature=0.2,
         )
         
-        # Initialize data loader
+        # Initialize data loader with cross-domain access
         if use_direct_loader is None:
             use_direct_loader = self._is_jupyter()
-        self.data_loader = DataLoader(use_direct=use_direct_loader)
+        self.data_loader = AgentDataLoader(
+            agent_type=self.agent_name,
+            use_direct=use_direct_loader,
+            allow_cross_domain=allow_cross_domain
+        )
         
         # Initialize LLM analyzer for direct mode
         self.analyzer = MarketingLLMAnalyzer()
@@ -91,7 +100,10 @@ class MarketingAgent:
         if use_tools:
             self._init_tool_agent()
         
-        logger.info(f"[MarketingAgent] Initialized (tools={use_tools})")
+        logger.info(
+            f"[MarketingAgent] Initialized (tools={use_tools}, "
+            f"cross_domain={allow_cross_domain})"
+        )
     
     @staticmethod
     def _is_jupyter() -> bool:
@@ -106,9 +118,13 @@ class MarketingAgent:
         """Initialize LangGraph agent with tools."""
         tools = get_marketing_tools()
         
-        # Create system prompt
+        # Create system prompt with cross-domain awareness
         system_prompt = """You are a Marketing Analysis Agent for an e-commerce business.
 Your job is to analyze marketing campaign data and answer user questions about conversions, ad spend, ROI, and campaign performance.
+
+You have access to:
+- Marketing data (campaigns, conversions, ad spend, ROI)
+- Sales data (for cross-domain queries about revenue, discounts, recovery strategies)
 
 Use the available tools to get the right analysis for the user's question.
 Select the most appropriate tool based on what the user is asking:
@@ -121,6 +137,10 @@ Select the most appropriate tool based on what the user is asking:
 - For diagnosing drops: use identify_conversion_drop_cause
 - For correlation with sales: use analyze_marketing_sales_correlation
 - For summaries: use get_marketing_summary
+
+For questions about discounts, sales recovery, or revenue impact:
+- Correlate marketing campaigns with actual sales data
+- Consider revenue trends when recommending discount strategies
 
 After getting the tool result, provide a clear, concise answer to the user.
 Always include specific numbers, percentages, and currency values in your response."""

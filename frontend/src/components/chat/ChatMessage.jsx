@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { MESSAGE_TYPES, MESSAGE_STATUS } from '../../context/ChatContext';
 import HITLActions from './HITLActions';
+import PersonIcon from '@mui/icons-material/Person';
+import PsychologyIcon from '@mui/icons-material/Psychology';
+import LightbulbIcon from '@mui/icons-material/Lightbulb';
 import './ChatMessage.css';
 
 /**
@@ -81,7 +84,7 @@ function ChatMessage({ message }) {
   return (
     <div className={`chat-message ${isUser ? 'message-user' : 'message-assistant'} ${isError ? 'message-error' : ''} ${isCancelled ? 'message-cancelled' : ''}`}>
       <div className="message-avatar">
-        {isUser ? '👤' : '🧠'}
+        {isUser ? <PersonIcon sx={{ fontSize: 24 }} /> : <PsychologyIcon sx={{ fontSize: 24 }} />}
       </div>
       <div className="message-bubble">
         {renderContent()}
@@ -92,7 +95,7 @@ function ChatMessage({ message }) {
             className="recommendations-btn"
             onClick={() => setShowHITL(true)}
           >
-            💡 View Recommendations
+            <LightbulbIcon sx={{ fontSize: 18, marginRight: '4px' }} /> View Recommendations
           </button>
         )}
         

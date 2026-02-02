@@ -3,6 +3,7 @@ Support Agent Implementation (LLM-Driven)
 
 Uses LangChain tools for LLM-driven customer support analysis.
 The LLM decides what's happening based on data and question.
+Supports cross-domain access for queries involving sales correlation.
 """
 
 from typing import Dict, Any, Optional, List
@@ -12,7 +13,7 @@ from langfuse import observe
 from pydantic import BaseModel, Field
 
 from backend.settings import Settings
-from backend.utils.data_loader import DataLoader
+from backend.utils.agent_data_loader import AgentDataLoader
 from backend.schemas.agent_output import AgentOutput
 from .tools import get_support_tools, SupportLLMAnalyzer
 from .logic import (
@@ -57,7 +58,8 @@ class SupportAgent:
     def __init__(
         self,
         use_tools: bool = True,
-        use_direct_loader: Optional[bool] = None
+        use_direct_loader: Optional[bool] = None,
+        allow_cross_domain: bool = True
     ):
         """
         Initialize support agent.
@@ -65,9 +67,12 @@ class SupportAgent:
         Args:
             use_tools: Whether to use LangChain tools (vs direct LLM)
             use_direct_loader: Force direct DB access (auto-detect if None)
+            allow_cross_domain: Enable cross-domain data access for queries
+                              that require sales data correlation
         """
         self.agent_name = "support"
         self.use_tools = use_tools
+        self.allow_cross_domain = allow_cross_domain
         
         # Initialize LLM
         self.llm = AzureChatOpenAI(
@@ -78,10 +83,14 @@ class SupportAgent:
             temperature=0.2,
         )
         
-        # Initialize data loader
+        # Initialize data loader with cross-domain access
         if use_direct_loader is None:
             use_direct_loader = self._is_jupyter()
-        self.data_loader = DataLoader(use_direct=use_direct_loader)
+        self.data_loader = AgentDataLoader(
+            agent_type=self.agent_name,
+            use_direct=use_direct_loader,
+            allow_cross_domain=allow_cross_domain
+        )
         
         # Initialize LLM analyzer for direct mode
         self.analyzer = SupportLLMAnalyzer()
@@ -90,7 +99,10 @@ class SupportAgent:
         if use_tools:
             self._init_tool_agent()
         
-        logger.info(f"[SupportAgent] Initialized (tools={use_tools})")
+        logger.info(
+            f"[SupportAgent] Initialized (tools={use_tools}, "
+            f"cross_domain={allow_cross_domain})"
+        )
     
     @staticmethod
     def _is_jupyter() -> bool:
@@ -105,9 +117,13 @@ class SupportAgent:
         """Initialize LangGraph agent with tools."""
         tools = get_support_tools()
         
-        # Create system prompt
+        # Create system prompt with cross-domain awareness
         system_prompt = """You are a Customer Support Analysis Agent for an e-commerce business.
 Your job is to analyze support ticket data and answer user questions about complaints, sentiment, categories, and customer service quality.
+
+You have access to:
+- Support data (tickets, complaints, sentiment, categories, refunds)
+- Sales data (for cross-domain queries about review impact on conversions)
 
 Use the available tools to get the right analysis for the user's question.
 Select the most appropriate tool based on what the user is asking:
@@ -120,6 +136,10 @@ Select the most appropriate tool based on what the user is asking:
 - For diagnosing spikes: use identify_support_spike_cause
 - For correlation with sales: use analyze_support_sales_correlation
 - For summaries: use get_support_summary
+
+For questions about reviews affecting conversions or sales impact:
+- Correlate negative reviews with sales/conversion data
+- Consider timing of negative sentiment vs sales drops
 
 After getting the tool result, provide a clear, concise answer to the user.
 Always include specific numbers, percentages, and categories in your response."""

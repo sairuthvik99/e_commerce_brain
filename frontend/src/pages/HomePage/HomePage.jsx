@@ -9,6 +9,20 @@ import {
   RecentJobs,
   ServiceHealth 
 } from '../../components/dashboard';
+import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
+import CreditCardIcon from '@mui/icons-material/CreditCard';
+import InventoryIcon from '@mui/icons-material/Inventory';
+import WarningIcon from '@mui/icons-material/Warning';
+import HeadsetMicIcon from '@mui/icons-material/HeadsetMic';
+import CampaignIcon from '@mui/icons-material/Campaign';
+import BarChartIcon from '@mui/icons-material/BarChart';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import BoltIcon from '@mui/icons-material/Bolt';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import './HomePage.css';
 
 /**
@@ -59,7 +73,7 @@ function HomePage() {
     return (
       <div className="home-page error">
         <div className="error-container">
-          <span className="error-icon">⚠️</span>
+          <ErrorOutlineIcon className="error-icon" sx={{ fontSize: 48 }} />
           <h2>Unable to Load Dashboard</h2>
           <p>{error}</p>
           <button className="retry-button" onClick={fetchData}>
@@ -98,7 +112,7 @@ function HomePage() {
             )}
           </div>
           <button className="refresh-button" onClick={fetchData}>
-            🔄 Refresh
+            <RefreshIcon sx={{ fontSize: 18, marginRight: '4px' }} /> Refresh
           </button>
         </header>
 
@@ -108,23 +122,23 @@ function HomePage() {
             <StatCard 
               label="Total Revenue"
               value={formatCurrency(summary.total_revenue || 0)}
-              icon="💰"
+              icon={<AttachMoneyIcon sx={{ fontSize: 28 }} />}
               changeType="positive"
             />
             <StatCard 
               label="Yesterday Revenue"
               value={formatCurrency(summary.yesterday_revenue || 0)}
-              icon="📈"
+              icon={<TrendingUpIcon sx={{ fontSize: 28 }} />}
             />
             <StatCard 
               label="Total Orders"
               value={(summary.total_orders || 0).toLocaleString()}
-              icon="🛒"
+              icon={<ShoppingCartIcon sx={{ fontSize: 28 }} />}
             />
             <StatCard 
               label="Avg Order Value"
               value={formatCurrency(summary.avg_order_value || 0)}
-              icon="💳"
+              icon={<CreditCardIcon sx={{ fontSize: 28 }} />}
             />
           </section>
         ) : (
@@ -132,23 +146,23 @@ function HomePage() {
             <StatCard 
               label="Total Analyses"
               value={summary.total_jobs || 0}
-              icon="📊"
+              icon={<BarChartIcon sx={{ fontSize: 28 }} />}
             />
             <StatCard 
               label="Last 24 Hours"
               value={summary.jobs_last_24h || 0}
-              icon="⏰"
+              icon={<AccessTimeIcon sx={{ fontSize: 28 }} />}
             />
             <StatCard 
               label="Success Rate"
               value={`${summary.success_rate || 0}%`}
-              icon="✅"
+              icon={<CheckCircleIcon sx={{ fontSize: 28 }} />}
               changeType={summary.success_rate >= 80 ? 'positive' : summary.success_rate >= 50 ? 'neutral' : 'negative'}
             />
             <StatCard 
               label="Avg. Time"
               value={`${(summary.avg_completion_time_seconds || 0).toFixed(1)}s`}
-              icon="⚡"
+              icon={<BoltIcon sx={{ fontSize: 28 }} />}
             />
           </section>
         )}
@@ -159,19 +173,19 @@ function HomePage() {
             <StatCard 
               label="Stockouts"
               value={summary.total_stockouts || 0}
-              icon="📦"
+              icon={<InventoryIcon sx={{ fontSize: 28 }} />}
               changeType={summary.total_stockouts > 10 ? 'negative' : 'neutral'}
             />
             <StatCard 
               label="Stockout Products"
               value={summary.stockout_products || 0}
-              icon="⚠️"
+              icon={<WarningIcon sx={{ fontSize: 28 }} />}
               changeType={summary.stockout_products > 5 ? 'negative' : 'neutral'}
             />
             <StatCard 
               label="Complaints"
               value={summary.total_complaints || 0}
-              icon="🎧"
+              icon={<HeadsetMicIcon sx={{ fontSize: 28 }} />}
               changeType={summary.total_complaints > 50 ? 'negative' : 'neutral'}
             />
             <StatCard 
@@ -180,7 +194,7 @@ function HomePage() {
                 `${((summary.marketing_conversions / (summary.marketing_spend / 100)) || 0).toFixed(1)}%` : 
                 'N/A'
               }
-              icon="📢"
+              icon={<CampaignIcon sx={{ fontSize: 28 }} />}
             />
           </section>
         )}

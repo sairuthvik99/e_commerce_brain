@@ -1,5 +1,18 @@
 import { useState } from 'react';
 import { apiService } from '../../services/api';
+import CloseIcon from '@mui/icons-material/Close';
+import TrackChangesIcon from '@mui/icons-material/TrackChanges';
+import PhoneIcon from '@mui/icons-material/Phone';
+import ConfirmationNumberIcon from '@mui/icons-material/ConfirmationNumber';
+import EditNoteIcon from '@mui/icons-material/EditNote';
+import InventoryIcon from '@mui/icons-material/Inventory';
+import EmailIcon from '@mui/icons-material/Email';
+import BoltIcon from '@mui/icons-material/Bolt';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import CheckIcon from '@mui/icons-material/Check';
+import ClearIcon from '@mui/icons-material/Clear';
+import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
 import './HITLActions.css';
 
 /**
@@ -134,17 +147,17 @@ function HITLActions({ jobId, onClose }) {
   const getActionTypeIcon = (actionType) => {
     switch (actionType) {
       case 'contact_supplier':
-        return '📞';
+        return <PhoneIcon sx={{ fontSize: 20 }} />;
       case 'create_support_ticket':
-        return '🎫';
+        return <ConfirmationNumberIcon sx={{ fontSize: 20 }} />;
       case 'update_product_page':
-        return '📝';
+        return <EditNoteIcon sx={{ fontSize: 20 }} />;
       case 'adjust_inventory':
-        return '📦';
+        return <InventoryIcon sx={{ fontSize: 20 }} />;
       case 'send_notification':
-        return '📧';
+        return <EmailIcon sx={{ fontSize: 20 }} />;
       default:
-        return '⚡';
+        return <BoltIcon sx={{ fontSize: 20 }} />;
     }
   };
 
@@ -153,9 +166,9 @@ function HITLActions({ jobId, onClose }) {
     return (
       <div className="hitl-actions-container">
         <div className="hitl-header">
-          <h4>🎯 Recommended Actions</h4>
+          <h4><TrackChangesIcon sx={{ fontSize: 20, marginRight: '6px' }} /> Recommended Actions</h4>
           <button className="hitl-close-btn" onClick={onClose} title="Close">
-            ✕
+            <CloseIcon sx={{ fontSize: 18 }} />
           </button>
         </div>
         <div className="hitl-load-section">
@@ -173,9 +186,9 @@ function HITLActions({ jobId, onClose }) {
     return (
       <div className="hitl-actions-container">
         <div className="hitl-header">
-          <h4>🎯 Recommended Actions</h4>
+          <h4><TrackChangesIcon sx={{ fontSize: 20, marginRight: '6px' }} /> Recommended Actions</h4>
           <button className="hitl-close-btn" onClick={onClose} title="Close">
-            ✕
+            <CloseIcon sx={{ fontSize: 18 }} />
           </button>
         </div>
         <div className="hitl-loading">
@@ -191,13 +204,13 @@ function HITLActions({ jobId, onClose }) {
     return (
       <div className="hitl-actions-container">
         <div className="hitl-header">
-          <h4>🎯 Recommended Actions</h4>
+          <h4><TrackChangesIcon sx={{ fontSize: 20, marginRight: '6px' }} /> Recommended Actions</h4>
           <button className="hitl-close-btn" onClick={onClose} title="Close">
-            ✕
+            <CloseIcon sx={{ fontSize: 18 }} />
           </button>
         </div>
         <div className="hitl-error">
-          <span>⚠️ {error}</span>
+          <span><WarningAmberIcon sx={{ fontSize: 18 }} /> {error}</span>
           <button className="hitl-retry-btn" onClick={fetchActions}>
             Retry
           </button>
@@ -211,13 +224,13 @@ function HITLActions({ jobId, onClose }) {
     return (
       <div className="hitl-actions-container">
         <div className="hitl-header">
-          <h4>🎯 Recommended Actions</h4>
+          <h4><TrackChangesIcon sx={{ fontSize: 20, marginRight: '6px' }} /> Recommended Actions</h4>
           <button className="hitl-close-btn" onClick={onClose} title="Close">
-            ✕
+            <CloseIcon sx={{ fontSize: 18 }} />
           </button>
         </div>
         <div className="hitl-submitted">
-          <div className="hitl-success-icon">✅</div>
+          <div className="hitl-success-icon"><CheckCircleIcon sx={{ fontSize: 48, color: '#22c55e' }} /></div>
           <h5>Decisions Submitted Successfully!</h5>
           <p>
             Approved: {Object.values(actionDecisions).filter(d => d === 'accept').length} actions<br/>
@@ -235,15 +248,15 @@ function HITLActions({ jobId, onClose }) {
   return (
     <div className="hitl-actions-container">
       <div className="hitl-header">
-        <h4>🎯 Recommended Actions ({actions.length})</h4>
+        <h4><TrackChangesIcon sx={{ fontSize: 20, marginRight: '6px' }} /> Recommended Actions ({actions.length})</h4>
         <button className="hitl-close-btn" onClick={onClose} title="Close">
-          ✕
+          <CloseIcon sx={{ fontSize: 18 }} />
         </button>
       </div>
       
       {error && (
         <div className="hitl-inline-error">
-          ⚠️ {error}
+          <WarningAmberIcon sx={{ fontSize: 16 }} /> {error}
         </div>
       )}
 
@@ -284,14 +297,14 @@ function HITLActions({ jobId, onClose }) {
                 onClick={() => handleDecision(action.action_id, 'accept')}
                 disabled={submitting}
               >
-                ✓ Accept
+                <CheckIcon sx={{ fontSize: 16 }} /> Accept
               </button>
               <button
                 className={`decision-btn reject-btn ${actionDecisions[action.action_id] === 'reject' ? 'selected' : ''}`}
                 onClick={() => handleDecision(action.action_id, 'reject')}
                 disabled={submitting}
               >
-                ✗ Reject
+                <ClearIcon sx={{ fontSize: 16 }} /> Reject
               </button>
             </div>
           </div>
@@ -301,13 +314,13 @@ function HITLActions({ jobId, onClose }) {
       <div className="hitl-footer">
         <div className="decision-summary">
           <span className="accepted-count">
-            ✓ {Object.values(actionDecisions).filter(d => d === 'accept').length} Accepted
+            <CheckIcon sx={{ fontSize: 14 }} /> {Object.values(actionDecisions).filter(d => d === 'accept').length} Accepted
           </span>
           <span className="rejected-count">
-            ✗ {Object.values(actionDecisions).filter(d => d === 'reject').length} Rejected
+            <ClearIcon sx={{ fontSize: 14 }} /> {Object.values(actionDecisions).filter(d => d === 'reject').length} Rejected
           </span>
           <span className="pending-count">
-            ○ {Object.values(actionDecisions).filter(d => d === null).length} Pending
+            <RadioButtonUncheckedIcon sx={{ fontSize: 14 }} /> {Object.values(actionDecisions).filter(d => d === null).length} Pending
           </span>
         </div>
         <button 

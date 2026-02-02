@@ -1,4 +1,8 @@
 import Card from '../common/Card';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import WarningIcon from '@mui/icons-material/Warning';
+import ErrorIcon from '@mui/icons-material/Error';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import './ServiceHealth.css';
 
 /**
@@ -9,13 +13,13 @@ function ServiceHealth({ health = null, loading = false }) {
   const getStatusIcon = (status) => {
     switch (status) {
       case 'healthy':
-        return '🟢';
+        return <CheckCircleIcon sx={{ fontSize: 18, color: '#22c55e' }} />;
       case 'degraded':
-        return '🟡';
+        return <WarningIcon sx={{ fontSize: 18, color: '#eab308' }} />;
       case 'unhealthy':
-        return '🔴';
+        return <ErrorIcon sx={{ fontSize: 18, color: '#ef4444' }} />;
       default:
-        return '⚪';
+        return <HelpOutlineIcon sx={{ fontSize: 18, color: '#9ca3af' }} />;
     }
   };
 

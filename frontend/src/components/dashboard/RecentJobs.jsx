@@ -1,4 +1,5 @@
 import Card from '../common/Card';
+import AssignmentIcon from '@mui/icons-material/Assignment';
 import './RecentJobs.css';
 
 /**
@@ -50,7 +51,7 @@ function RecentJobs({ jobs = [], loading = false }) {
       
       {jobs.length === 0 ? (
         <div className="recent-jobs-empty">
-          <span className="empty-icon">📋</span>
+          <AssignmentIcon className="empty-icon" sx={{ fontSize: 40 }} />
           <p>No analyses yet</p>
         </div>
       ) : (

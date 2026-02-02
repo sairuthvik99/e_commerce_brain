@@ -1,10 +1,25 @@
 /**
  * Predefined questions categorized by domain
  */
+import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
+import InventoryIcon from '@mui/icons-material/Inventory';
+import CampaignIcon from '@mui/icons-material/Campaign';
+import HeadsetMicIcon from '@mui/icons-material/HeadsetMic';
+import { createElement } from 'react';
+
+// Icon components for categories
+export const CATEGORY_ICONS = {
+  sales: AttachMoneyIcon,
+  inventory: InventoryIcon,
+  marketing: CampaignIcon,
+  support: HeadsetMicIcon
+};
+
 export const QUESTION_CATEGORIES = {
   sales: {
     title: "Sales & Revenue",
-    icon: "💰",
+    icon: "sales",
+    iconComponent: AttachMoneyIcon,
     description: "Analyze sales performance, revenue trends, and order metrics",
     questions: [
       "Why did sales drop yesterday?",
@@ -18,7 +33,8 @@ export const QUESTION_CATEGORIES = {
   },
   inventory: {
     title: "Inventory & Supply",
-    icon: "📦",
+    icon: "inventory",
+    iconComponent: InventoryIcon,
     description: "Monitor stock levels, supply chain, and inventory health",
     questions: [
       "Were any top-selling products out of stock yesterday?",
@@ -30,7 +46,8 @@ export const QUESTION_CATEGORIES = {
   },
   marketing: {
     title: "Marketing & Campaigns",
-    icon: "📢",
+    icon: "marketing",
+    iconComponent: CampaignIcon,
     description: "Track campaign performance and marketing effectiveness",
     questions: [
       "Were any campaigns paused or underperforming?",
@@ -42,7 +59,8 @@ export const QUESTION_CATEGORIES = {
   },
   support: {
     title: "Customer Support",
-    icon: "🎧",
+    icon: "support",
+    iconComponent: HeadsetMicIcon,
     description: "Monitor customer feedback, complaints, and support metrics",
     questions: [
       "Did customer complaints increase yesterday?",

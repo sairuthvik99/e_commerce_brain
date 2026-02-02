@@ -3,14 +3,16 @@ Agent-Aware Data Loader
 
 Data loader that respects agent-specific table access permissions.
 Each agent can only access data from tables they are authorized to use.
+Supports cross-domain access for queries that require multiple data sources.
 """
 
-from typing import Dict, Optional
+from typing import Dict, Optional, Set
 from langfuse import observe
 from backend.database.permissions import (
     can_use_data_method,
     get_allowed_data_methods,
     get_allowed_tables,
+    get_cross_domain_methods,
     AgentType
 )
 from backend.utils.data_loader import DataLoader, DirectDataLoader
@@ -30,35 +32,55 @@ class AgentDataLoader:
     
     This loader wraps the base DataLoader and enforces access permissions
     based on the agent type. Each agent can only access tables relevant
-    to their domain.
+    to their domain. Cross-domain access can be enabled for queries
+    that require data from multiple sources.
     
-    Access permissions:
+    Access permissions (base):
     - Sales: daily_metrics, orders
     - Marketing: daily_metrics, marketing_campaigns_daily  
     - Inventory: daily_metrics, inventory_snapshots
     - Support: daily_metrics, support_tickets
     - General: ALL tables
+    
+    Cross-domain access (when enabled):
+    - Inventory: + orders (for viewed/purchased analysis)
+    - Marketing: + orders (for discount/ROI analysis)
+    - Support: + orders (for review/conversion correlation)
+    - Sales: + inventory_snapshots, marketing_campaigns_daily (for root cause)
     """
     
-    def __init__(self, agent_type: str, use_direct: bool = True):
+    def __init__(
+        self, 
+        agent_type: str, 
+        use_direct: bool = True,
+        allow_cross_domain: bool = True
+    ):
         """
         Initialize agent data loader.
         
         Args:
             agent_type: The type of agent (sales, marketing, inventory, support, general)
             use_direct: If True, use direct database access (recommended)
+            allow_cross_domain: If True, enable cross-domain data access
         """
         self.agent_type = agent_type.lower()
         self.use_direct = use_direct
+        self.allow_cross_domain = allow_cross_domain
         self._data_loader = DataLoader(use_direct=use_direct)
         
-        # Cache allowed methods for this agent
-        self._allowed_methods = set(get_allowed_data_methods(self.agent_type))
-        self._allowed_tables = get_allowed_tables(self.agent_type)
+        # Cache allowed methods for this agent (with cross-domain if enabled)
+        self._allowed_methods = set(
+            get_allowed_data_methods(self.agent_type, include_cross_domain=allow_cross_domain)
+        )
+        self._allowed_tables = get_allowed_tables(
+            self.agent_type, include_cross_domain=allow_cross_domain
+        )
+        self._cross_domain_methods = get_cross_domain_methods(self.agent_type)
         
         logger.info(
             f"[AgentDataLoader] Initialized for {self.agent_type} agent. "
-            f"Allowed tables: {self._allowed_tables}"
+            f"Cross-domain: {allow_cross_domain}. "
+            f"Allowed methods: {self._allowed_methods}"
         )
     
     def _check_access(self, method_name: str) -> None:
@@ -68,11 +90,24 @@ class AgentDataLoader:
         Raises:
             AccessDeniedError if access is denied
         """
-        if not can_use_data_method(self.agent_type, method_name):
+        if not can_use_data_method(
+            self.agent_type, 
+            method_name, 
+            include_cross_domain=self.allow_cross_domain
+        ):
             raise AccessDeniedError(
                 f"Agent '{self.agent_type}' does not have access to '{method_name}'. "
                 f"Allowed methods: {self._allowed_methods}"
             )
+    
+    def is_cross_domain_method(self, method_name: str) -> bool:
+        """Check if a method is accessed via cross-domain permissions."""
+        return method_name in self._cross_domain_methods
+    
+    @property
+    def cross_domain_methods(self) -> Set[str]:
+        """Get the set of methods accessible via cross-domain permissions."""
+        return self._cross_domain_methods.copy()
     
     @property
     def allowed_tables(self) -> set:
@@ -193,28 +228,37 @@ class AgentDataLoader:
 
 
 # Factory function to create agent-specific loaders
-def create_agent_loader(agent_type: str, use_direct: bool = True) -> AgentDataLoader:
+def create_agent_loader(
+    agent_type: str, 
+    use_direct: bool = True,
+    allow_cross_domain: bool = True
+) -> AgentDataLoader:
     """
     Factory function to create an agent-specific data loader.
     
     Args:
         agent_type: The type of agent (sales, marketing, inventory, support, general)
         use_direct: If True, use direct database access
+        allow_cross_domain: If True, enable cross-domain data access
         
     Returns:
         AgentDataLoader configured for the specified agent
         
     Example:
-        # Create a sales agent loader
-        loader = create_agent_loader("sales")
+        # Create an inventory agent loader with cross-domain access
+        loader = create_agent_loader("inventory", allow_cross_domain=True)
         
-        # Sales agent can load sales data
-        sales_data = loader.load_sales_data()
+        # Inventory agent can load inventory data (base permission)
+        inventory_data = loader.load_inventory_data()
         
-        # But cannot load support data - will raise AccessDeniedError
-        # loader.load_support_data()  # Raises AccessDeniedError
+        # Inventory agent can also load sales data (cross-domain permission)
+        sales_data = loader.load_sales_data()  # Works with cross-domain enabled!
     """
-    return AgentDataLoader(agent_type=agent_type, use_direct=use_direct)
+    return AgentDataLoader(
+        agent_type=agent_type, 
+        use_direct=use_direct,
+        allow_cross_domain=allow_cross_domain
+    )
 
 
 # Pre-configured loaders for each agent type
@@ -224,34 +268,38 @@ class AgentLoaders:
     _instances: Dict[str, AgentDataLoader] = {}
     
     @classmethod
-    def get(cls, agent_type: str) -> AgentDataLoader:
+    def get(cls, agent_type: str, allow_cross_domain: bool = True) -> AgentDataLoader:
         """Get or create an AgentDataLoader for the specified agent type."""
         agent_type = agent_type.lower()
-        if agent_type not in cls._instances:
-            cls._instances[agent_type] = create_agent_loader(agent_type)
-        return cls._instances[agent_type]
+        cache_key = f"{agent_type}_{allow_cross_domain}"
+        if cache_key not in cls._instances:
+            cls._instances[cache_key] = create_agent_loader(
+                agent_type, 
+                allow_cross_domain=allow_cross_domain
+            )
+        return cls._instances[cache_key]
     
     @classmethod
-    def sales(cls) -> AgentDataLoader:
+    def sales(cls, allow_cross_domain: bool = True) -> AgentDataLoader:
         """Get the sales agent data loader."""
-        return cls.get("sales")
+        return cls.get("sales", allow_cross_domain=allow_cross_domain)
     
     @classmethod
-    def marketing(cls) -> AgentDataLoader:
+    def marketing(cls, allow_cross_domain: bool = True) -> AgentDataLoader:
         """Get the marketing agent data loader."""
-        return cls.get("marketing")
+        return cls.get("marketing", allow_cross_domain=allow_cross_domain)
     
     @classmethod
-    def inventory(cls) -> AgentDataLoader:
+    def inventory(cls, allow_cross_domain: bool = True) -> AgentDataLoader:
         """Get the inventory agent data loader."""
-        return cls.get("inventory")
+        return cls.get("inventory", allow_cross_domain=allow_cross_domain)
     
     @classmethod
-    def support(cls) -> AgentDataLoader:
+    def support(cls, allow_cross_domain: bool = True) -> AgentDataLoader:
         """Get the support agent data loader."""
-        return cls.get("support")
+        return cls.get("support", allow_cross_domain=allow_cross_domain)
     
     @classmethod
     def general(cls) -> AgentDataLoader:
         """Get the general agent data loader."""
-        return cls.get("general")
+        return cls.get("general", allow_cross_domain=True)

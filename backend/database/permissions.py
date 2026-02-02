@@ -3,6 +3,7 @@ Database Table Access Permissions
 
 Defines which tables each agent is allowed to access.
 This ensures agents can only query data relevant to their domain.
+Supports cross-domain access for queries that require multiple data sources.
 """
 
 from typing import Dict, List, Set
@@ -29,7 +30,7 @@ class Tables(str, Enum):
     SUPPORT_TICKETS = "support_tickets"
 
 
-# Agent-to-table access mapping
+# Agent-to-table access mapping (BASE permissions)
 AGENT_TABLE_ACCESS: Dict[AgentType, Set[Tables]] = {
     # Sales agent: access to daily_metrics and orders
     AgentType.SALES: {
@@ -75,52 +76,103 @@ AGENT_TABLE_ACCESS: Dict[AgentType, Set[Tables]] = {
 }
 
 
-def get_allowed_tables(agent_type: str) -> Set[str]:
+# Cross-domain table access - additional tables agents can access for specific queries
+# These are granted when cross-domain access is enabled
+CROSS_DOMAIN_TABLE_ACCESS: Dict[AgentType, Set[Tables]] = {
+    # Inventory agent can access orders table for "viewed but not purchased" queries
+    AgentType.INVENTORY: {
+        Tables.ORDERS,
+    },
+    
+    # Marketing agent can access orders for discount/ROI analysis
+    AgentType.MARKETING: {
+        Tables.ORDERS,
+    },
+    
+    # Support agent can access orders to correlate reviews with conversions
+    AgentType.SUPPORT: {
+        Tables.ORDERS,
+    },
+    
+    # Sales agent can access inventory and marketing for root cause analysis
+    AgentType.SALES: {
+        Tables.INVENTORY_SNAPSHOTS,
+        Tables.MARKETING_CAMPAIGNS_DAILY,
+    },
+}
+
+
+# Cross-domain method access - additional DataLoader methods granted for cross-domain queries
+CROSS_DOMAIN_METHOD_ACCESS: Dict[str, Set[str]] = {
+    # Inventory agent can load sales data for cross-reference
+    "inventory": {"load_sales_data"},
+    
+    # Marketing agent can load sales data for discount recommendations
+    "marketing": {"load_sales_data"},
+    
+    # Support agent can load sales data for review/conversion correlation
+    "support": {"load_sales_data"},
+    
+    # Sales agent can load inventory/marketing for root cause analysis
+    "sales": {"load_inventory_data", "load_marketing_data"},
+}
+
+
+def get_allowed_tables(agent_type: str, include_cross_domain: bool = False) -> Set[str]:
     """
     Get the set of table names an agent is allowed to access.
     
     Args:
         agent_type: The agent type as a string (e.g., "sales", "marketing")
+        include_cross_domain: If True, include cross-domain tables
         
     Returns:
         Set of table names the agent can access
     """
     try:
         agent = AgentType(agent_type.lower())
-        tables = AGENT_TABLE_ACCESS.get(agent, set())
+        tables = AGENT_TABLE_ACCESS.get(agent, set()).copy()
+        
+        # Add cross-domain tables if enabled
+        if include_cross_domain:
+            cross_domain_tables = CROSS_DOMAIN_TABLE_ACCESS.get(agent, set())
+            tables = tables.union(cross_domain_tables)
+        
         return {t.value for t in tables}
     except ValueError:
         # Unknown agent type - return empty set (no access)
         return set()
 
 
-def has_table_access(agent_type: str, table_name: str) -> bool:
+def has_table_access(agent_type: str, table_name: str, include_cross_domain: bool = False) -> bool:
     """
     Check if an agent has access to a specific table.
     
     Args:
         agent_type: The agent type as a string
         table_name: The table name to check access for
+        include_cross_domain: If True, include cross-domain permissions
         
     Returns:
         True if agent has access, False otherwise
     """
-    allowed_tables = get_allowed_tables(agent_type)
+    allowed_tables = get_allowed_tables(agent_type, include_cross_domain=include_cross_domain)
     return table_name.lower() in allowed_tables
 
 
-def validate_agent_access(agent_type: str, requested_tables: List[str]) -> Dict:
+def validate_agent_access(agent_type: str, requested_tables: List[str], include_cross_domain: bool = False) -> Dict:
     """
     Validate which tables an agent can access from a list of requested tables.
     
     Args:
         agent_type: The agent type as a string
         requested_tables: List of table names the agent wants to access
+        include_cross_domain: If True, include cross-domain permissions
         
     Returns:
         Dict with 'allowed' and 'denied' lists of table names
     """
-    allowed_tables = get_allowed_tables(agent_type)
+    allowed_tables = get_allowed_tables(agent_type, include_cross_domain=include_cross_domain)
     
     allowed = []
     denied = []
@@ -150,36 +202,57 @@ DATA_LOADER_METHOD_TABLES: Dict[str, Set[str]] = {
 }
 
 
-def can_use_data_method(agent_type: str, method_name: str) -> bool:
+def can_use_data_method(agent_type: str, method_name: str, include_cross_domain: bool = False) -> bool:
     """
     Check if an agent can use a specific DataLoader method.
     
     Args:
         agent_type: The agent type as a string
         method_name: The DataLoader method name
+        include_cross_domain: If True, include cross-domain permissions
         
     Returns:
         True if agent can use the method, False otherwise
     """
+    # Check if method is in cross-domain access list
+    if include_cross_domain:
+        cross_domain_methods = CROSS_DOMAIN_METHOD_ACCESS.get(agent_type.lower(), set())
+        if method_name in cross_domain_methods:
+            return True
+    
     required_tables = DATA_LOADER_METHOD_TABLES.get(method_name, set())
-    allowed_tables = get_allowed_tables(agent_type)
+    allowed_tables = get_allowed_tables(agent_type, include_cross_domain=include_cross_domain)
     
     # Agent can use the method if they have access to ALL required tables
     return required_tables.issubset(allowed_tables)
 
 
-def get_allowed_data_methods(agent_type: str) -> List[str]:
+def get_allowed_data_methods(agent_type: str, include_cross_domain: bool = False) -> List[str]:
     """
     Get list of DataLoader methods an agent is allowed to use.
     
     Args:
         agent_type: The agent type as a string
+        include_cross_domain: If True, include cross-domain methods
         
     Returns:
         List of method names the agent can use
     """
     allowed_methods = []
     for method, tables in DATA_LOADER_METHOD_TABLES.items():
-        if can_use_data_method(agent_type, method):
+        if can_use_data_method(agent_type, method, include_cross_domain=include_cross_domain):
             allowed_methods.append(method)
     return allowed_methods
+
+
+def get_cross_domain_methods(agent_type: str) -> Set[str]:
+    """
+    Get the set of cross-domain methods available to an agent.
+    
+    Args:
+        agent_type: The agent type as a string
+        
+    Returns:
+        Set of method names granted through cross-domain access
+    """
+    return CROSS_DOMAIN_METHOD_ACCESS.get(agent_type.lower(), set())
