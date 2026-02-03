@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 
 from backend.settings import Settings
 from backend.utils.data_loader import DataLoader
+from backend.utils.prompt_loader import load_prompt
 from backend.schemas.agent_output import AgentOutput
 from .tools import get_general_tools, GeneralLLMAnalyzer
 
@@ -30,6 +31,14 @@ class GeneralAgentContext(BaseModel):
     other_agent_outputs: Dict[str, Any] = Field(
         default_factory=dict,
         description="Outputs from other agents"
+    )
+    long_term_context: str = Field(
+        default="",
+        description="Long-term memory context (user preferences, facts, knowledge)"
+    )
+    conversation_history: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        description="Recent conversation history"
     )
 
 
@@ -98,30 +107,12 @@ class GeneralAgent:
         """Initialize LangGraph agent with tools."""
         tools = get_general_tools()
         
-        # Create system prompt for general agent
-        system_prompt = """You are a General Business Intelligence Agent for an e-commerce business.
-Your job is to analyze data across ALL business domains and answer comprehensive business questions.
-
-You have access to ALL data sources:
-- Sales data (revenue, orders, AOV)
-- Inventory data (stock levels, stockouts)
-- Marketing data (campaigns, conversions, spend)
-- Support data (tickets, complaints, sentiment)
-- Daily metrics (aggregated KPIs)
-
-Use the available tools to get comprehensive analysis for the user's question.
-Select the most appropriate tool(s) based on what the user is asking:
-- For business health overviews: use analyze_business_health
-- For cross-domain analysis: use analyze_cross_domain
-- For daily summaries: use get_daily_summary
-- For KPI comparisons: use compare_kpis
-- For trend analysis across domains: use analyze_trends
-- For specific domain data: use query_domain_data
-- For correlation analysis: use find_correlations
-
-After getting the tool result, provide a clear, concise answer to the user.
-Always include specific numbers and percentages in your response.
-When multiple domains are involved, synthesize insights rather than listing separately."""
+        # Load system prompt from prompts/system_prompt.md
+        system_prompt = load_prompt(
+            agent="general",
+            task="system_prompt",
+            prompt_type="system"
+        )
         
         # Create LangGraph agent
         self.agent = create_react_agent(
@@ -174,11 +165,20 @@ When multiple domains are involved, synthesize insights rather than listing sepa
         """Execute using LangGraph agent with tools."""
         logger.info("[GeneralAgent] Executing with tools...")
         
+        # Build comprehensive input with memory context
+        input_parts = [question]
+        
+        # Add long-term memory context (IMPORTANT for user facts like name)
+        if context.long_term_context:
+            input_parts.append(f"\n\n### MEMORY CONTEXT (User Preferences, Known Facts, Knowledge):\n{context.long_term_context}")
+            logger.info(f"[GeneralAgent] Including long-term memory context: {len(context.long_term_context)} chars")
+        
         # Add context from other agents if available
-        input_text = question
         if context.other_agent_outputs:
             other_context = json.dumps(context.other_agent_outputs, indent=2, default=str)
-            input_text = f"{question}\n\nContext from other agents:\n{other_context}"
+            input_parts.append(f"\n\n### Context from other agents:\n{other_context}")
+        
+        input_text = "".join(input_parts)
         
         # Run agent
         messages = [{"role": "user", "content": input_text}]
@@ -216,12 +216,21 @@ When multiple domains are involved, synthesize insights rather than listing sepa
         # Load all available data
         all_data = self._load_all_data(days=7)
         
+        # Build additional context including long-term memory
+        additional_context_parts = []
+        if context.long_term_context:
+            additional_context_parts.append(f"### Memory Context:\n{context.long_term_context}")
+        if context.other_agent_outputs:
+            additional_context_parts.append(f"### Other Agents:\n{str(context.other_agent_outputs)}")
+        
+        additional_context = "\n\n".join(additional_context_parts) if additional_context_parts else None
+        
         # Analyze using LLM
         result = self.analyzer.analyze(
             question=question,
             data=all_data,
             analysis_type="general_business_health",
-            additional_context=str(context.other_agent_outputs) if context.other_agent_outputs else None
+            additional_context=additional_context
         )
         
         # Extract structured response
@@ -288,7 +297,9 @@ When multiple domains are involved, synthesize insights rather than listing sepa
         context = GeneralAgentContext(
             question=state.get("question", ""),
             intent=state.get("intent", "general"),
-            other_agent_outputs=state.get("agent_outputs", {})
+            other_agent_outputs=state.get("agent_outputs", {}),
+            long_term_context=state.get("long_term_context", ""),
+            conversation_history=state.get("conversation_history", [])
         )
         
         output = self.execute(context)

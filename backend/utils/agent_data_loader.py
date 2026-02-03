@@ -174,6 +174,18 @@ class AgentDataLoader:
         logger.info(f"[AgentDataLoader:{self.agent_type}] Loading marketing data for {days} days...")
         return self._data_loader.load_marketing_data(days=days)
     
+    @observe(name="agent_loader_load_channel_data")
+    def load_channel_data(self, days: int = 7) -> Dict:
+        """
+        Load marketing channel data.
+        
+        Requires access to: marketing_campaigns_daily
+        Available to: marketing, general agents
+        """
+        self._check_access('load_channel_data')
+        logger.info(f"[AgentDataLoader:{self.agent_type}] Loading channel data for {days} days...")
+        return self._data_loader.load_channel_data(days=days)
+    
     @observe(name="agent_loader_load_support_data") 
     def load_support_data(self, days: int = 7) -> Dict:
         """
@@ -185,6 +197,67 @@ class AgentDataLoader:
         self._check_access('load_support_data')
         logger.info(f"[AgentDataLoader:{self.agent_type}] Loading support data for {days} days...")
         return self._data_loader.load_support_data(days=days)
+    
+    @observe(name="agent_loader_load_all_products_inventory")
+    def load_all_products_inventory(self) -> Dict:
+        """
+        Load all products with their current inventory status.
+        
+        Requires access to: inventory_snapshots
+        Available to: inventory, general agents
+        """
+        self._check_access('load_all_products_inventory')
+        logger.info(f"[AgentDataLoader:{self.agent_type}] Loading all products inventory...")
+        return self._data_loader.load_all_products_inventory()
+    
+    @observe(name="agent_loader_load_product_inventory")
+    def load_product_inventory(self, product_id: int) -> Dict:
+        """
+        Load inventory details for a specific product.
+        
+        Requires access to: inventory_snapshots
+        Available to: inventory, general agents
+        """
+        self._check_access('load_product_inventory')
+        logger.info(f"[AgentDataLoader:{self.agent_type}] Loading product {product_id} inventory...")
+        return self._data_loader.load_product_inventory(product_id)
+    
+    @observe(name="agent_loader_search_products")
+    def search_products(self, search_term: str) -> Dict:
+        """
+        Search for products by name/id.
+        
+        Requires access to: inventory_snapshots
+        Available to: inventory, general agents
+        """
+        self._check_access('search_products')
+        logger.info(f"[AgentDataLoader:{self.agent_type}] Searching products for '{search_term}'...")
+        return self._data_loader.search_products(search_term)
+    
+    @observe(name="agent_loader_update_product_stock")
+    def update_product_stock(self, product_id: int, quantity_change: int, reason: str = None) -> Dict:
+        """
+        Update stock level for a product.
+        
+        Requires access to: inventory_snapshots (write)
+        Available to: inventory, general agents
+        NOTE: This should only be called after HITL approval
+        """
+        self._check_access('update_product_stock')
+        logger.info(f"[AgentDataLoader:{self.agent_type}] Updating product {product_id} stock by {quantity_change}...")
+        return self._data_loader.update_product_stock(product_id, quantity_change, reason)
+    
+    @observe(name="agent_loader_load_top_products_data")
+    def load_top_products_data(self, days: int = 7, top_n: int = 5) -> Dict:
+        """
+        Load top selling products data.
+        
+        Requires access to: orders, order_items
+        Available to: sales, general agents
+        """
+        self._check_access('load_top_products_data')
+        logger.info(f"[AgentDataLoader:{self.agent_type}] Loading top {top_n} products for {days} days...")
+        return self._data_loader.load_top_products_data(days=days, top_n=top_n)
     
     def load_all_domain_data(self, days: int = 7) -> Dict:
         """

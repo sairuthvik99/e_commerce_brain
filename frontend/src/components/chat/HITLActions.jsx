@@ -110,7 +110,7 @@ function HITLActions({ jobId, onClose }) {
 
     try {
       await apiService.approveProposal(
-        proposalId,
+        jobId,
         approvedIds,
         rejectedIds,
         'user', // approver

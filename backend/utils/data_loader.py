@@ -83,11 +83,53 @@ class DirectDataLoader:
         result = self.queries.get_campaign_performance(days=days)
         return result
     
+    @observe(name="direct_loader_load_channel_data")
+    def load_channel_data(self, days: int = 7) -> Dict:
+        """Load marketing channel data (direct). Traced via Langfuse @observe decorator."""
+        logger.info(f"[DirectDataLoader] Loading channel data for {days} days...")
+        result = self.queries.get_campaign_channels(days=days)
+        return result
+    
     @observe(name="direct_loader_load_support_data")
     def load_support_data(self, days: int = 7) -> Dict:
         """Load support data (direct). Traced via Langfuse @observe decorator."""
         logger.info(f"[DirectDataLoader] Loading support data for {days} days...")
         result = self.queries.get_ticket_volume(days=days)
+        return result
+    
+    @observe(name="direct_loader_load_top_products_data")
+    def load_top_products_data(self, days: int = 7, top_n: int = 5) -> Dict:
+        """Load top selling products data (direct). Traced via Langfuse @observe decorator."""
+        logger.info(f"[DirectDataLoader] Loading top {top_n} products for {days} days...")
+        result = self.queries.get_top_selling_products(days=days, top_n=top_n)
+        return result
+    
+    @observe(name="direct_loader_load_all_products_inventory")
+    def load_all_products_inventory(self) -> Dict:
+        """Load all products with their current inventory status. Traced via Langfuse @observe decorator."""
+        logger.info("[DirectDataLoader] Loading all products inventory...")
+        result = self.queries.get_all_products_inventory()
+        return result
+    
+    @observe(name="direct_loader_load_product_inventory")
+    def load_product_inventory(self, product_id: int) -> Dict:
+        """Load inventory details for a specific product. Traced via Langfuse @observe decorator."""
+        logger.info(f"[DirectDataLoader] Loading product {product_id} inventory...")
+        result = self.queries.get_product_inventory(product_id)
+        return result
+    
+    @observe(name="direct_loader_search_products")
+    def search_products(self, search_term: str) -> Dict:
+        """Search for products by name/id. Traced via Langfuse @observe decorator."""
+        logger.info(f"[DirectDataLoader] Searching products for '{search_term}'...")
+        result = self.queries.search_products_by_name(search_term)
+        return result
+    
+    @observe(name="direct_loader_update_product_stock")
+    def update_product_stock(self, product_id: int, quantity_change: int, reason: str = None) -> Dict:
+        """Update stock level for a product. Traced via Langfuse @observe decorator."""
+        logger.info(f"[DirectDataLoader] Updating product {product_id} stock by {quantity_change}...")
+        result = self.queries.update_product_stock(product_id, quantity_change, reason)
         return result
 
 
@@ -198,11 +240,55 @@ class DataLoader:
         logger.info(f"[DataLoader] Loading marketing data for {days} days...")
         return self._with_fallback("get_campaign_performance", "load_marketing_data", days=days)
     
+    @observe(name="data_loader_load_channel_data")
+    def load_channel_data(self, days: int = 7) -> Dict:
+        """Load marketing channel data (synchronous). Traced via Langfuse @observe decorator."""
+        logger.info(f"[DataLoader] Loading channel data for {days} days...")
+        return self._with_fallback("get_campaign_channels", "load_channel_data", days=days)
+    
     @observe(name="data_loader_load_support_data")
     def load_support_data(self, days: int = 7) -> Dict:
         """Load support data (synchronous). Traced via Langfuse @observe decorator."""
         logger.info(f"[DataLoader] Loading support data for {days} days...")
         return self._with_fallback("get_ticket_volume", "load_support_data", days=days)
+    
+    @observe(name="data_loader_load_top_products_data")
+    def load_top_products_data(self, days: int = 7, top_n: int = 5) -> Dict:
+        """Load top selling products data (synchronous). Traced via Langfuse @observe decorator."""
+        logger.info(f"[DataLoader] Loading top {top_n} products for {days} days...")
+        return self._with_fallback("get_top_selling_products", "load_top_products_data", days=days, top_n=top_n)
+    
+    @observe(name="data_loader_load_all_products_inventory")
+    def load_all_products_inventory(self) -> Dict:
+        """Load all products with their current inventory status. Traced via Langfuse @observe decorator."""
+        logger.info("[DataLoader] Loading all products inventory...")
+        # Direct method only - no MCP equivalent
+        direct_loader = self._get_direct_loader()
+        return direct_loader.load_all_products_inventory()
+    
+    @observe(name="data_loader_load_product_inventory")
+    def load_product_inventory(self, product_id: int) -> Dict:
+        """Load inventory details for a specific product. Traced via Langfuse @observe decorator."""
+        logger.info(f"[DataLoader] Loading product {product_id} inventory...")
+        # Direct method only - no MCP equivalent
+        direct_loader = self._get_direct_loader()
+        return direct_loader.load_product_inventory(product_id)
+    
+    @observe(name="data_loader_search_products")
+    def search_products(self, search_term: str) -> Dict:
+        """Search for products by name/id. Traced via Langfuse @observe decorator."""
+        logger.info(f"[DataLoader] Searching products for '{search_term}'...")
+        # Direct method only - no MCP equivalent
+        direct_loader = self._get_direct_loader()
+        return direct_loader.search_products(search_term)
+    
+    @observe(name="data_loader_update_product_stock")
+    def update_product_stock(self, product_id: int, quantity_change: int, reason: str = None) -> Dict:
+        """Update stock level for a product. Traced via Langfuse @observe decorator."""
+        logger.info(f"[DataLoader] Updating product {product_id} stock by {quantity_change}...")
+        # Direct method only - no MCP equivalent
+        direct_loader = self._get_direct_loader()
+        return direct_loader.update_product_stock(product_id, quantity_change, reason)
 
 
 # Singleton instances

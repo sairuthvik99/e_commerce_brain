@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 
 from backend.settings import Settings
 from backend.utils.agent_data_loader import AgentDataLoader
+from backend.utils.prompt_loader import load_prompt
 from backend.schemas.agent_output import AgentOutput
 from .tools import get_inventory_tools, InventoryLLMAnalyzer
 from .logic import (
@@ -116,31 +117,12 @@ class InventoryAgent:
         """Initialize LangGraph agent with tools."""
         tools = get_inventory_tools()
         
-        # Create system prompt with cross-domain awareness
-        system_prompt = """You are an Inventory Analysis Agent for an e-commerce business.
-Your job is to analyze inventory data and answer user questions about stockouts, inventory levels, and product availability.
-
-You have access to:
-- Inventory data (stock levels, stockouts, snapshots)
-- Sales data (for cross-domain queries about viewed/purchased items, conversions)
-
-Use the available tools to get the right analysis for the user's question.
-Select the most appropriate tool based on what the user is asking:
-- For general inventory questions: use analyze_inventory_status
-- For stockout details: use analyze_stockout_events
-- For trend analysis: use analyze_stockout_trend
-- For critical products: use identify_critical_stockouts
-- For sales impact: use analyze_inventory_impact
-- For restock recommendations: use prioritize_restock
-- For severity comparison: use compare_stockout_severity
-- For summaries: use get_inventory_summary
-
-For questions about "viewed but not purchased" or conversion impact:
-- Correlate inventory stockouts with sales/order data
-- Consider products that were viewed but unavailable
-
-After getting the tool result, provide a clear, concise answer to the user.
-Always include specific numbers and severity multipliers in your response."""
+        # Load system prompt from prompts/system_prompt.md
+        system_prompt = load_prompt(
+            agent="inventory",
+            task="system_prompt",
+            prompt_type="system"
+        )
         
         # Create LangGraph agent
         self.agent = create_react_agent(

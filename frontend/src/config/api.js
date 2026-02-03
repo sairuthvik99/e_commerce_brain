@@ -43,9 +43,21 @@ export const API_CONFIG = {
     // Memory
     MEMORY_SEARCH: '/memory/search',
     MEMORY_INSIGHTS: (jobId) => `/memory/insights/${jobId}`,
+    MEMORY_STATS: '/memory/stats',
+    MEMORY_SHORT_TERM: '/memory/short-term',
+    MEMORY_LONG_TERM: '/memory/long-term',
+    MEMORY_SAVE_PREFERENCE: '/memory/long-term/preference',
+    MEMORY_SAVE_FACT: '/memory/long-term/fact',
+    MEMORY_SAVE_KNOWLEDGE: '/memory/long-term/knowledge',
     
     // HITL
-    PROPOSALS_APPROVE: (proposalId) => `/proposals/${proposalId}/approve`,
+    PROPOSALS_APPROVE: (jobId) => `/jobs/${jobId}/actions/approve`,
+    
+    // Stock Updates HITL
+    STOCK_UPDATES: '/stock-updates',
+    STOCK_UPDATE_DETAIL: (proposalId) => `/stock-updates/${proposalId}`,
+    STOCK_UPDATE_APPROVE: (proposalId) => `/stock-updates/${proposalId}/approve`,
+    STOCK_UPDATE_EXECUTE: (proposalId) => `/stock-updates/${proposalId}/execute`,
     
     // WebSocket
     WS_JOB: (jobId) => `/ws/jobs/${jobId}`,

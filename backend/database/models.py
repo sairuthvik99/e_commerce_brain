@@ -35,6 +35,26 @@ class Orders(Base):
         return f"<Order {self.order_id}: ${self.order_value} on {self.created_date}>"
 
 
+class OrderItems(Base):
+    """
+    Order items table - product-level sales data.
+    
+    Links orders to products to track which products were sold.
+    Used by: Sales Agent (for top products analysis)
+    """
+    __tablename__ = "order_items"
+    
+    item_id = Column(Integer, primary_key=True, autoincrement=True)
+    order_id = Column(Integer, nullable=False, index=True)
+    product_id = Column(Integer, nullable=False, index=True)
+    quantity = Column(Integer, nullable=False, default=1)
+    unit_price = Column(Numeric, nullable=False)
+    item_total = Column(Numeric, nullable=False)
+    
+    def __repr__(self):
+        return f"<OrderItem {self.item_id}: Product {self.product_id} x{self.quantity}>"
+
+
 class InventorySnapshots(Base):
     """
     Inventory snapshots - stock levels over time.

@@ -349,3 +349,322 @@ async def get_memory_stats() -> Dict[str, Any]:
         "total_vectors": 0,
         "message": "Vector database not connected"
     }
+
+
+# ============================================================
+# Short-Term Memory Endpoints (Conversation History)
+# ============================================================
+
+class ConversationEntry(BaseModel):
+    """A single conversation history entry."""
+    id: int = Field(..., description="Entry ID")
+    question: str = Field(..., description="User's question")
+    response: str = Field(default="", description="Agent's response")
+    intent: str = Field(default="", description="Detected intent")
+    agent_outputs: Optional[Dict[str, Any]] = Field(None, description="Outputs from each agent")
+    root_cause: Optional[Dict[str, Any]] = Field(None, description="Root cause analysis")
+    timestamp: Optional[str] = Field(None, description="When the conversation occurred")
+
+
+class ShortTermMemoryResponse(BaseModel):
+    """Response containing short-term memory (conversation history)."""
+    entries: List[ConversationEntry]
+    total_count: int
+    max_entries: int = 10
+    message: str
+
+
+@router.get(
+    "/memory/short-term",
+    response_model=ShortTermMemoryResponse,
+    summary="Get Short-Term Memory",
+    description="Retrieve the conversation history (last 10 entries)"
+)
+async def get_short_term_memory(
+    limit: int = Query(10, ge=1, le=10, description="Max entries to retrieve")
+) -> ShortTermMemoryResponse:
+    """
+    Get the short-term memory (conversation history).
+    
+    Returns the last N conversation entries stored in the database.
+    The system keeps a maximum of 10 entries.
+    """
+    try:
+        from backend.memory import ShortTermMemory
+        
+        stm = ShortTermMemory()
+        history = stm.get_conversation_history(limit=limit)
+        
+        entries = [
+            ConversationEntry(
+                id=entry.get("id", 0),
+                question=entry.get("question", ""),
+                response=entry.get("response", ""),
+                intent=entry.get("intent", ""),
+                agent_outputs=entry.get("agent_outputs"),
+                root_cause=entry.get("root_cause"),
+                timestamp=entry.get("timestamp")
+            )
+            for entry in history
+        ]
+        
+        return ShortTermMemoryResponse(
+            entries=entries,
+            total_count=len(entries),
+            max_entries=10,
+            message=f"Retrieved {len(entries)} conversation entries"
+        )
+    except Exception as e:
+        logger.error(f"Failed to get short-term memory: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to retrieve short-term memory: {str(e)}"
+        )
+
+
+@router.delete(
+    "/memory/short-term",
+    summary="Clear Short-Term Memory",
+    description="Clear all conversation history"
+)
+async def clear_short_term_memory() -> Dict[str, Any]:
+    """Clear all short-term memory (conversation history)."""
+    try:
+        from backend.memory import ShortTermMemory
+        
+        stm = ShortTermMemory()
+        stm.clear_history()
+        
+        return {
+            "success": True,
+            "message": "Short-term memory cleared successfully"
+        }
+    except Exception as e:
+        logger.error(f"Failed to clear short-term memory: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to clear short-term memory: {str(e)}"
+        )
+
+
+# ============================================================
+# Long-Term Memory Endpoints (Preferences, Facts, Knowledge)
+# ============================================================
+
+class PreferenceEntry(BaseModel):
+    """A preference entry."""
+    key: str = Field(..., description="Preference key")
+    value: Any = Field(..., description="Preference value")
+
+
+class FactEntry(BaseModel):
+    """A fact entry."""
+    key: str = Field(..., description="Fact key")
+    fact: str = Field(..., description="The fact content")
+    category: str = Field(default="general", description="Fact category")
+    created_at: Optional[str] = Field(None, description="When the fact was created")
+
+
+class KnowledgeEntry(BaseModel):
+    """A knowledge entry."""
+    key: str = Field(..., description="Knowledge key")
+    topic: str = Field(..., description="Topic/title")
+    content: str = Field(..., description="Knowledge content")
+    source: str = Field(default="", description="Source of knowledge")
+    created_at: Optional[str] = Field(None, description="When the knowledge was created")
+
+
+class LongTermMemoryResponse(BaseModel):
+    """Response containing long-term memory."""
+    preferences: List[PreferenceEntry]
+    facts: List[FactEntry]
+    knowledge: List[KnowledgeEntry]
+    message: str
+
+
+@router.get(
+    "/memory/long-term",
+    response_model=LongTermMemoryResponse,
+    summary="Get Long-Term Memory",
+    description="Retrieve all long-term memory (preferences, facts, knowledge)"
+)
+async def get_long_term_memory() -> LongTermMemoryResponse:
+    """
+    Get the long-term memory.
+    
+    Returns all stored preferences, facts, and knowledge entries.
+    """
+    try:
+        from backend.memory import LongTermMemory
+        
+        ltm = LongTermMemory()
+        
+        # Get all preferences
+        raw_preferences = ltm.get_all_preferences()
+        preferences = [
+            PreferenceEntry(key=k, value=v)
+            for k, v in raw_preferences.items()
+        ]
+        
+        # Get all facts
+        raw_facts = ltm.get_facts(limit=50)
+        facts = [
+            FactEntry(
+                key=f.get("key", ""),
+                fact=f.get("fact", ""),
+                category=f.get("category", "general"),
+                created_at=f.get("created_at")
+            )
+            for f in raw_facts
+        ]
+        
+        # Get all knowledge
+        raw_knowledge = ltm.get_knowledge(limit=50)
+        knowledge = [
+            KnowledgeEntry(
+                key=k.get("key", ""),
+                topic=k.get("topic", ""),
+                content=k.get("content", ""),
+                source=k.get("source", ""),
+                created_at=k.get("created_at")
+            )
+            for k in raw_knowledge
+        ]
+        
+        return LongTermMemoryResponse(
+            preferences=preferences,
+            facts=facts,
+            knowledge=knowledge,
+            message=f"Retrieved {len(preferences)} preferences, {len(facts)} facts, {len(knowledge)} knowledge entries"
+        )
+    except Exception as e:
+        logger.error(f"Failed to get long-term memory: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to retrieve long-term memory: {str(e)}"
+        )
+
+
+@router.delete(
+    "/memory/long-term",
+    summary="Clear Long-Term Memory",
+    description="Clear all long-term memory (use with caution)"
+)
+async def clear_long_term_memory() -> Dict[str, Any]:
+    """Clear all long-term memory (preferences, facts, knowledge)."""
+    try:
+        from backend.memory import LongTermMemory
+        
+        ltm = LongTermMemory()
+        ltm.clear_all()
+        
+        return {
+            "success": True,
+            "message": "Long-term memory cleared successfully"
+        }
+    except Exception as e:
+        logger.error(f"Failed to clear long-term memory: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to clear long-term memory: {str(e)}"
+        )
+
+
+# ============================================================
+# Long-Term Memory Write Endpoints
+# ============================================================
+
+class SavePreferenceRequest(BaseModel):
+    """Request to save a preference."""
+    key: str = Field(..., min_length=1, description="Preference key")
+    value: Any = Field(..., description="Preference value")
+
+
+class SaveFactRequest(BaseModel):
+    """Request to save a fact."""
+    fact: str = Field(..., min_length=5, description="The fact to store")
+    category: str = Field(default="general", description="Category of the fact")
+
+
+class SaveKnowledgeRequest(BaseModel):
+    """Request to save knowledge."""
+    topic: str = Field(..., min_length=3, description="Topic/title")
+    content: str = Field(..., min_length=10, description="Knowledge content")
+    source: str = Field(default="user", description="Source of knowledge")
+
+
+@router.post(
+    "/memory/long-term/preference",
+    summary="Save Preference",
+    description="Save a user or system preference to long-term memory"
+)
+async def save_preference(request: SavePreferenceRequest) -> Dict[str, Any]:
+    """Save a preference to long-term memory."""
+    try:
+        from backend.memory import LongTermMemory
+        
+        ltm = LongTermMemory()
+        ltm.save_preference(request.key, request.value)
+        
+        return {
+            "success": True,
+            "message": f"Preference '{request.key}' saved successfully"
+        }
+    except Exception as e:
+        logger.error(f"Failed to save preference: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to save preference: {str(e)}"
+        )
+
+
+@router.post(
+    "/memory/long-term/fact",
+    summary="Save Fact",
+    description="Save a learned fact to long-term memory"
+)
+async def save_fact(request: SaveFactRequest) -> Dict[str, Any]:
+    """Save a fact to long-term memory."""
+    try:
+        from backend.memory import LongTermMemory
+        
+        ltm = LongTermMemory()
+        key = ltm.save_fact(request.fact, request.category)
+        
+        return {
+            "success": True,
+            "key": key,
+            "message": "Fact saved successfully"
+        }
+    except Exception as e:
+        logger.error(f"Failed to save fact: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to save fact: {str(e)}"
+        )
+
+
+@router.post(
+    "/memory/long-term/knowledge",
+    summary="Save Knowledge",
+    description="Save accumulated knowledge to long-term memory"
+)
+async def save_knowledge(request: SaveKnowledgeRequest) -> Dict[str, Any]:
+    """Save knowledge to long-term memory."""
+    try:
+        from backend.memory import LongTermMemory
+        
+        ltm = LongTermMemory()
+        key = ltm.save_knowledge(request.topic, request.content, request.source)
+        
+        return {
+            "success": True,
+            "key": key,
+            "message": "Knowledge saved successfully"
+        }
+    except Exception as e:
+        logger.error(f"Failed to save knowledge: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to save knowledge: {str(e)}"
+        )

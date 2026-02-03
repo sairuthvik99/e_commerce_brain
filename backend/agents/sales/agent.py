@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 
 from backend.settings import Settings
 from backend.utils.agent_data_loader import AgentDataLoader
+from backend.utils.prompt_loader import load_prompt
 from backend.schemas.agent_output import AgentOutput
 from .tools import get_sales_tools, SalesLLMAnalyzer
 
@@ -110,31 +111,12 @@ class SalesAgent:
         """Initialize LangGraph agent with tools."""
         tools = get_sales_tools()
         
-        # Create system prompt with cross-domain awareness
-        system_prompt = """You are a Sales Analysis Agent for an e-commerce business.
-Your job is to analyze sales data and answer user questions about revenue, orders, and AOV.
-
-You have access to:
-- Sales data (revenue, orders, AOV, regional performance)
-- Inventory data (for cross-domain queries about stockout impact on sales)
-- Marketing data (for cross-domain queries about campaign impact on sales)
-
-Use the available tools to get the right analysis for the user's question.
-Select the most appropriate tool based on what the user is asking:
-- For general sales questions: use analyze_sales_performance
-- For comparisons: use compare_sales_periods  
-- For trend analysis: use analyze_sales_trend
-- For anomaly detection: use identify_sales_anomaly
-- For understanding drops: use identify_drop_cause
-- For regional analysis: use analyze_regional_performance
-- For summaries: use get_sales_summary
-
-For questions about root causes involving inventory or marketing:
-- Correlate sales drops with stockout events
-- Consider campaign performance impact on revenue
-
-After getting the tool result, provide a clear, concise answer to the user.
-Always include specific numbers and percentages in your response."""
+        # Load system prompt from prompts/system_prompt.md
+        system_prompt = load_prompt(
+            agent="sales",
+            task="system_prompt",
+            prompt_type="system"
+        )
         
         # Create LangGraph agent
         self.agent = create_react_agent(

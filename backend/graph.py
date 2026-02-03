@@ -307,6 +307,89 @@ class MemorySaverNode:
         return state
 
 
+# ==================== LONG-TERM MEMORY SAVER NODE ====================
+
+class LongTermMemorySaverNode:
+    """
+    Saves insights from analysis to long-term memory.
+    Extracts knowledge from root cause analysis and agent findings.
+    """
+    def __init__(self):
+        self._memory = None
+    
+    @property
+    def memory(self):
+        """Lazy initialization of long-term memory store."""
+        if self._memory is None:
+            try:
+                self._memory = LongTermMemory()
+            except Exception as e:
+                logger.warning(f"[LongTermMemorySaver] Failed to initialize LongTermMemory: {e}")
+        return self._memory
+    
+    @observe(name="long_term_memory_saver_node")
+    def __call__(self, state: MVPState) -> MVPState:
+        """Extract and save insights to long-term memory."""
+        logger.info("[LongTermMemorySaver] Analyzing for long-term insights...")
+        
+        if not self.memory:
+            return state
+        
+        try:
+            root_cause = state.get("root_cause", {})
+            agent_outputs = state.get("agent_outputs", {})
+            intent = state.get("intent", "")
+            question = state.get("question", "")
+            
+            # Extract and save knowledge from root cause analysis
+            if root_cause:
+                # Save the primary cause as knowledge if it's significant
+                primary_cause = root_cause.get("primary_cause", "")
+                summary = root_cause.get("summary", "")
+                confidence = root_cause.get("confidence", 0)
+                
+                # Only save high-confidence insights (> 0.7)
+                if primary_cause and confidence and confidence > 0.7:
+                    self.memory.save_knowledge(
+                        topic=f"Analysis: {intent}",
+                        content=f"Root Cause: {primary_cause}. {summary}",
+                        source="analysis"
+                    )
+                    logger.info(f"[LongTermMemorySaver] Saved knowledge from analysis")
+                
+                # Save contributing factors as facts
+                contributing_factors = root_cause.get("contributing_factors", [])
+                for i, factor in enumerate(contributing_factors[:3]):  # Limit to top 3
+                    if isinstance(factor, str) and len(factor) > 10:
+                        self.memory.save_fact(
+                            fact=factor,
+                            category="contributing_factor"
+                        )
+                        logger.info(f"[LongTermMemorySaver] Saved contributing factor as fact")
+            
+            # Extract insights from agent outputs
+            for agent_name, output in agent_outputs.items():
+                if isinstance(output, dict):
+                    # Save significant findings as knowledge
+                    finding = output.get("finding", "")
+                    confidence = output.get("confidence", 0)
+                    
+                    if finding and confidence and confidence > 0.8 and len(finding) > 50:
+                        self.memory.save_knowledge(
+                            topic=f"{agent_name.title()} Insight",
+                            content=finding[:500],  # Limit content length
+                            source=f"agent_{agent_name}"
+                        )
+                        logger.info(f"[LongTermMemorySaver] Saved knowledge from {agent_name}")
+            
+            logger.info("[LongTermMemorySaver] Long-term memory analysis complete")
+            
+        except Exception as e:
+            logger.error(f"[LongTermMemorySaver] Failed to save to long-term memory: {e}")
+        
+        return state
+
+
 # ==================== GRAPH MANAGER (Singleton) ====================
 
 class GraphManager:
@@ -369,6 +452,9 @@ class GraphManager:
         # Memory saver (saves conversation after synthesis)
         graph.add_node("save_memory", MemorySaverNode())
         
+        # Long-term memory saver (extracts and saves insights)
+        graph.add_node("save_long_term_memory", LongTermMemorySaverNode())
+        
         # Persist analysis to Vector DB (Day 4)
         graph.add_node("persist_analysis", PersistAnalysisNode())
         
@@ -420,7 +506,8 @@ class GraphManager:
         
         # Linear flow after synthesis
         graph.add_edge("synthesis", "save_memory")  # Save to memory after synthesis
-        graph.add_edge("save_memory", "reflection")
+        graph.add_edge("save_memory", "save_long_term_memory")  # Save long-term insights
+        graph.add_edge("save_long_term_memory", "reflection")
         graph.add_edge("reflection", "persist_analysis")
         graph.add_edge("persist_analysis", "hitl")
         graph.add_edge("hitl", END)

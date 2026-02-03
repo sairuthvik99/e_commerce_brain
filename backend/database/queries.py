@@ -8,7 +8,7 @@ All queries use SQLAlchemy ORM.
 from sqlalchemy import func, and_, desc, Integer
 from backend.database.connection import session_scope
 from backend.database.models import (
-    Orders, InventorySnapshots, MarketingCampaignsDaily,
+    Orders, OrderItems, InventorySnapshots, MarketingCampaignsDaily,
     SupportTickets, DailyMetrics
 )
 from datetime import datetime, timedelta, date
@@ -126,6 +126,101 @@ def get_daily_sales_metrics(days: int = 7) -> Dict:
     
     except Exception as e:
         logger.error(f"[Queries] Failed to get sales metrics: {e}")
+        raise
+
+
+def get_top_selling_products(days: int = 7, top_n: int = 5) -> Dict:
+    """
+    Get top selling products by quantity and revenue.
+    
+    Args:
+        days: Number of days to analyze (default 7)
+        top_n: Number of top products to return (default 5)
+    
+    Returns:
+        {
+            'period_start': date,
+            'period_end': date,
+            'top_by_quantity': [
+                {'product_id': int, 'total_quantity': int, 'total_revenue': float, 'order_count': int},
+                ...
+            ],
+            'top_by_revenue': [
+                {'product_id': int, 'total_quantity': int, 'total_revenue': float, 'order_count': int},
+                ...
+            ]
+        }
+    """
+    try:
+        start_date, end_date = get_date_range(days)
+        
+        with session_scope() as session:
+            # Get top products by quantity sold
+            top_by_quantity = session.query(
+                OrderItems.product_id,
+                func.sum(OrderItems.quantity).label('total_quantity'),
+                func.sum(OrderItems.item_total).label('total_revenue'),
+                func.count(func.distinct(OrderItems.order_id)).label('order_count')
+            ).join(
+                Orders, Orders.order_id == OrderItems.order_id
+            ).filter(
+                and_(
+                    Orders.created_date >= start_date,
+                    Orders.created_date <= end_date
+                )
+            ).group_by(
+                OrderItems.product_id
+            ).order_by(
+                desc('total_quantity')
+            ).limit(top_n).all()
+            
+            # Get top products by revenue
+            top_by_revenue = session.query(
+                OrderItems.product_id,
+                func.sum(OrderItems.quantity).label('total_quantity'),
+                func.sum(OrderItems.item_total).label('total_revenue'),
+                func.count(func.distinct(OrderItems.order_id)).label('order_count')
+            ).join(
+                Orders, Orders.order_id == OrderItems.order_id
+            ).filter(
+                and_(
+                    Orders.created_date >= start_date,
+                    Orders.created_date <= end_date
+                )
+            ).group_by(
+                OrderItems.product_id
+            ).order_by(
+                desc('total_revenue')
+            ).limit(top_n).all()
+            
+            result = {
+                'period_start': start_date,
+                'period_end': end_date,
+                'top_by_quantity': [
+                    {
+                        'product_id': p.product_id,
+                        'total_quantity': p.total_quantity or 0,
+                        'total_revenue': float(p.total_revenue or 0),
+                        'order_count': p.order_count or 0
+                    }
+                    for p in top_by_quantity
+                ],
+                'top_by_revenue': [
+                    {
+                        'product_id': p.product_id,
+                        'total_quantity': p.total_quantity or 0,
+                        'total_revenue': float(p.total_revenue or 0),
+                        'order_count': p.order_count or 0
+                    }
+                    for p in top_by_revenue
+                ]
+            }
+            
+            logger.info(f"[Queries] Top selling products: {len(result['top_by_quantity'])} products returned")
+            return result
+    
+    except Exception as e:
+        logger.error(f"[Queries] Failed to get top selling products: {e}")
         raise
 
 
@@ -293,6 +388,81 @@ def get_campaign_performance(days: int = 7) -> Dict:
         raise
 
 
+def get_campaign_channels(days: int = 7) -> Dict:
+    """
+    Get marketing campaign channels and their performance.
+    
+    Returns:
+        {
+            'period_start': date,
+            'period_end': date,
+            'channels': [
+                {
+                    'channel': str,
+                    'total_impressions': int,
+                    'total_clicks': int,
+                    'total_spend': float,
+                    'total_conversions': int,
+                    'campaign_count': int
+                },
+                ...
+            ],
+            'channel_list': [str, ...]  # Just the channel names
+        }
+    """
+    try:
+        start_date, end_date = get_date_range(days)
+        
+        with session_scope() as session:
+            # Get channel-level aggregated metrics
+            channel_data = session.query(
+                MarketingCampaignsDaily.channel,
+                func.sum(MarketingCampaignsDaily.impressions).label('total_impressions'),
+                func.sum(MarketingCampaignsDaily.clicks).label('total_clicks'),
+                func.sum(MarketingCampaignsDaily.spend).label('total_spend'),
+                func.sum(MarketingCampaignsDaily.conversions).label('total_conversions'),
+                func.count(func.distinct(MarketingCampaignsDaily.campaign_id)).label('campaign_count')
+            ).filter(
+                and_(
+                    MarketingCampaignsDaily.date >= start_date,
+                    MarketingCampaignsDaily.date <= end_date
+                )
+            ).group_by(MarketingCampaignsDaily.channel).order_by(desc('total_conversions')).all()
+            
+            if not channel_data:
+                logger.warning("[Queries] No marketing channel data found")
+                return {
+                    'period_start': start_date,
+                    'period_end': end_date,
+                    'channels': [],
+                    'channel_list': []
+                }
+            
+            result = {
+                'period_start': start_date,
+                'period_end': end_date,
+                'channels': [
+                    {
+                        'channel': c.channel or 'Unknown',
+                        'total_impressions': c.total_impressions or 0,
+                        'total_clicks': c.total_clicks or 0,
+                        'total_spend': float(c.total_spend or 0),
+                        'total_conversions': c.total_conversions or 0,
+                        'campaign_count': c.campaign_count or 0
+                    }
+                    for c in channel_data
+                ],
+                'channel_list': [c.channel or 'Unknown' for c in channel_data]
+            }
+            
+            logger.info(f"[Queries] Marketing channels: {len(result['channels'])} channels found - {result['channel_list']}")
+            return result
+    
+    except Exception as e:
+        logger.error(f"[Queries] Failed to get campaign channels: {e}")
+        raise
+
+
 # ==================== SUPPORT QUERIES ====================
 
 def get_ticket_volume(days: int = 7) -> Dict:
@@ -368,4 +538,256 @@ def get_ticket_volume(days: int = 7) -> Dict:
     
     except Exception as e:
         logger.error(f"[Queries] Failed to get ticket volume: {e}")
+        raise
+
+
+# ==================== INVENTORY DATA RETRIEVAL ====================
+
+def get_all_products_inventory() -> Dict:
+    """
+    Get all products with their current inventory status.
+    
+    Returns:
+        {
+            'total_products': int,
+            'products': [
+                {
+                    'product_id': int,
+                    'available_stock': int,
+                    'stock_threshold': int,
+                    'is_out_of_stock': bool,
+                    'out_of_stock_since': datetime or None,
+                    'snapshot_timestamp': datetime
+                },
+                ...
+            ],
+            'summary': {
+                'in_stock_count': int,
+                'out_of_stock_count': int,
+                'low_stock_count': int
+            }
+        }
+    """
+    try:
+        with session_scope() as session:
+            # Get the most recent snapshot for each product
+            # Using subquery to get latest timestamp per product
+            from sqlalchemy import func
+            from sqlalchemy.orm import aliased
+            
+            # Subquery to get max timestamp for each product
+            subq = session.query(
+                InventorySnapshots.product_id,
+                func.max(InventorySnapshots.snapshot_timestamp).label('max_ts')
+            ).group_by(InventorySnapshots.product_id).subquery()
+            
+            # Get the full records matching the latest timestamp
+            products = session.query(InventorySnapshots).join(
+                subq,
+                and_(
+                    InventorySnapshots.product_id == subq.c.product_id,
+                    InventorySnapshots.snapshot_timestamp == subq.c.max_ts
+                )
+            ).order_by(InventorySnapshots.product_id).all()
+            
+            # Calculate summary
+            in_stock = [p for p in products if not p.is_out_of_stock]
+            out_of_stock = [p for p in products if p.is_out_of_stock]
+            low_stock = [p for p in products if p.available_stock <= (p.stock_threshold or 10) and not p.is_out_of_stock]
+            
+            result = {
+                'total_products': len(products),
+                'products': [
+                    {
+                        'product_id': p.product_id,
+                        'available_stock': p.available_stock,
+                        'stock_threshold': p.stock_threshold,
+                        'is_out_of_stock': p.is_out_of_stock,
+                        'out_of_stock_since': p.out_of_stock_since,
+                        'snapshot_timestamp': p.snapshot_timestamp
+                    }
+                    for p in products
+                ],
+                'summary': {
+                    'in_stock_count': len(in_stock),
+                    'out_of_stock_count': len(out_of_stock),
+                    'low_stock_count': len(low_stock)
+                }
+            }
+            
+            logger.info(f"[Queries] Retrieved {len(products)} products inventory data")
+            return result
+    
+    except Exception as e:
+        logger.error(f"[Queries] Failed to get all products inventory: {e}")
+        raise
+
+
+def get_product_inventory(product_id: int) -> Dict:
+    """
+    Get inventory details for a specific product.
+    
+    Args:
+        product_id: The product ID to look up
+    
+    Returns:
+        {
+            'product_id': int,
+            'available_stock': int,
+            'stock_threshold': int,
+            'is_out_of_stock': bool,
+            'out_of_stock_since': datetime or None,
+            'snapshot_timestamp': datetime,
+            'found': bool
+        }
+    """
+    try:
+        with session_scope() as session:
+            # Get the most recent snapshot for this product
+            product = session.query(InventorySnapshots).filter(
+                InventorySnapshots.product_id == product_id
+            ).order_by(desc(InventorySnapshots.snapshot_timestamp)).first()
+            
+            if not product:
+                return {
+                    'product_id': product_id,
+                    'found': False,
+                    'error': f'Product {product_id} not found in inventory'
+                }
+            
+            result = {
+                'product_id': product.product_id,
+                'available_stock': product.available_stock,
+                'stock_threshold': product.stock_threshold,
+                'is_out_of_stock': product.is_out_of_stock,
+                'out_of_stock_since': product.out_of_stock_since,
+                'snapshot_timestamp': product.snapshot_timestamp,
+                'found': True
+            }
+            
+            logger.info(f"[Queries] Product {product_id} stock: {result['available_stock']}")
+            return result
+    
+    except Exception as e:
+        logger.error(f"[Queries] Failed to get product {product_id} inventory: {e}")
+        raise
+
+
+def update_product_stock(product_id: int, quantity_change: int, reason: str = None) -> Dict:
+    """
+    Update stock level for a product.
+    
+    Args:
+        product_id: The product ID to update
+        quantity_change: Amount to add (positive) or remove (negative)
+        reason: Optional reason for the update
+    
+    Returns:
+        {
+            'product_id': int,
+            'previous_stock': int,
+            'new_stock': int,
+            'quantity_change': int,
+            'is_out_of_stock': bool,
+            'success': bool,
+            'message': str
+        }
+    """
+    try:
+        with session_scope() as session:
+            # Get current stock level
+            current = session.query(InventorySnapshots).filter(
+                InventorySnapshots.product_id == product_id
+            ).order_by(desc(InventorySnapshots.snapshot_timestamp)).first()
+            
+            if not current:
+                return {
+                    'product_id': product_id,
+                    'success': False,
+                    'message': f'Product {product_id} not found in inventory'
+                }
+            
+            previous_stock = current.available_stock
+            new_stock = max(0, previous_stock + quantity_change)  # Don't allow negative stock
+            
+            # Create new snapshot with updated stock
+            from datetime import datetime
+            new_snapshot = InventorySnapshots(
+                product_id=product_id,
+                snapshot_timestamp=datetime.utcnow(),
+                available_stock=new_stock,
+                stock_threshold=current.stock_threshold,
+                is_out_of_stock=(new_stock == 0),
+                out_of_stock_since=datetime.utcnow() if new_stock == 0 and previous_stock > 0 else current.out_of_stock_since
+            )
+            
+            session.add(new_snapshot)
+            session.flush()  # Ensure the insert happens
+            
+            result = {
+                'product_id': product_id,
+                'previous_stock': previous_stock,
+                'new_stock': new_stock,
+                'quantity_change': quantity_change,
+                'is_out_of_stock': new_stock == 0,
+                'success': True,
+                'message': f'Stock updated from {previous_stock} to {new_stock}',
+                'reason': reason
+            }
+            
+            logger.info(f"[Queries] Updated product {product_id} stock: {previous_stock} -> {new_stock}")
+            return result
+    
+    except Exception as e:
+        logger.error(f"[Queries] Failed to update product {product_id} stock: {e}")
+        raise
+
+
+def search_products_by_name(search_term: str) -> Dict:
+    """
+    Search for products by name/id.
+    Since we don't have product names in the schema, this searches by product_id.
+    
+    Args:
+        search_term: Search term (will try to match as product_id)
+    
+    Returns:
+        {
+            'search_term': str,
+            'products': [...],
+            'total_matches': int
+        }
+    """
+    try:
+        with session_scope() as session:
+            # Try to parse as integer for product_id search
+            try:
+                product_id = int(search_term)
+                # Search by exact product_id
+                products = session.query(InventorySnapshots).filter(
+                    InventorySnapshots.product_id == product_id
+                ).order_by(desc(InventorySnapshots.snapshot_timestamp)).limit(1).all()
+            except ValueError:
+                # Not a number, return empty (we don't have product names in this schema)
+                products = []
+            
+            result = {
+                'search_term': search_term,
+                'products': [
+                    {
+                        'product_id': p.product_id,
+                        'available_stock': p.available_stock,
+                        'stock_threshold': p.stock_threshold,
+                        'is_out_of_stock': p.is_out_of_stock
+                    }
+                    for p in products
+                ],
+                'total_matches': len(products)
+            }
+            
+            logger.info(f"[Queries] Product search for '{search_term}': {len(products)} matches")
+            return result
+    
+    except Exception as e:
+        logger.error(f"[Queries] Failed to search products: {e}")
         raise

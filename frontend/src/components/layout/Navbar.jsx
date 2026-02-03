@@ -5,6 +5,7 @@ import { ModelSelector } from '../common';
 import PsychologyIcon from '@mui/icons-material/Psychology';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
+import StorageIcon from '@mui/icons-material/Storage';
 import LightModeIcon from '@mui/icons-material/LightMode';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
 import RefreshIcon from '@mui/icons-material/Refresh';
@@ -51,6 +52,14 @@ function Navbar() {
           >
             <SmartToyIcon className="nav-icon" sx={{ fontSize: 20 }} />
             <span className="nav-text">Agent</span>
+          </NavLink>
+          
+          <NavLink 
+            to="/memory" 
+            className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+          >
+            <StorageIcon className="nav-icon" sx={{ fontSize: 20 }} />
+            <span className="nav-text">Memory</span>
           </NavLink>
         </div>
 

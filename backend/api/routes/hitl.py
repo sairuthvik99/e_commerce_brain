@@ -2,6 +2,7 @@
 Human-in-the-Loop (HITL) Endpoints
 
 Endpoints for action proposals, approval, and rejection.
+Includes stock update HITL workflow for inventory management.
 """
 
 from typing import Optional, Any, Dict, List
@@ -451,3 +452,261 @@ async def list_proposals(
         "proposals": proposals[:limit],
         "total": len(proposals)
     }
+
+
+# ============================================================
+# Stock Update HITL Endpoints
+# ============================================================
+
+class StockUpdateProposalResponse(BaseModel):
+    """Response for stock update proposals."""
+    proposal_id: str
+    product_id: int
+    current_stock: int
+    quantity_change: int
+    new_stock: int
+    reason: str
+    status: str
+    created_at: datetime
+    expires_at: Optional[datetime] = None
+
+
+class StockUpdateApprovalRequest(BaseModel):
+    """Request to approve/reject a stock update."""
+    approved: bool = Field(..., description="Whether the update is approved")
+    approver: Optional[str] = Field(None, description="Who approved/rejected")
+    rejection_reason: Optional[str] = Field(None, description="Reason for rejection")
+
+
+class StockUpdateApprovalResponse(BaseModel):
+    """Response after stock update approval/rejection."""
+    proposal_id: str
+    product_id: int
+    status: str
+    message: str
+    executed: bool = False
+    new_stock: Optional[int] = None
+
+
+@router.get(
+    "/stock-updates",
+    summary="List Pending Stock Updates",
+    description="Get all pending stock update proposals requiring approval",
+    responses={
+        200: {"description": "Stock updates retrieved"}
+    }
+)
+async def list_pending_stock_updates(
+    status: Optional[str] = Query(None, description="Filter by status (pending, approved, rejected, executed)")
+) -> Dict[str, Any]:
+    """
+    List all pending stock update proposals.
+    
+    Returns stock update actions that need human approval.
+    """
+    from backend.agents.inventory.hitl_actions import (
+        get_all_pending_stock_updates,
+        get_pending_updates_for_display,
+        cleanup_expired_updates
+    )
+    
+    # Clean up expired updates first
+    cleanup_expired_updates()
+    
+    if status:
+        updates = get_all_pending_stock_updates(status=status)
+        actions = []
+        for update in updates:
+            action_type = "stock_increase" if update.quantity_change > 0 else "stock_decrease"
+            actions.append({
+                "action_id": update.proposal_id,
+                "action_type": action_type,
+                "description": f"{'Increase' if update.quantity_change > 0 else 'Decrease'} stock for Product {update.product_id} by {abs(update.quantity_change)} units",
+                "target": f"Product {update.product_id}",
+                "product_id": update.product_id,
+                "current_stock": update.current_stock,
+                "quantity_change": update.quantity_change,
+                "new_stock": update.new_stock,
+                "estimated_impact": f"Stock will change from {update.current_stock} to {update.new_stock}",
+                "risk_level": "high" if abs(update.quantity_change) > 100 else ("medium" if abs(update.quantity_change) > 50 else "low"),
+                "reason": update.reason,
+                "status": update.status,
+                "created_at": update.created_at.isoformat(),
+                "expires_at": update.expires_at.isoformat() if update.expires_at else None
+            })
+    else:
+        actions = get_pending_updates_for_display()
+    
+    return {
+        "actions": actions,
+        "total": len(actions),
+        "message": f"Found {len(actions)} stock update proposals"
+    }
+
+
+@router.get(
+    "/stock-updates/{proposal_id}",
+    summary="Get Stock Update Details",
+    description="Get details of a specific stock update proposal",
+    responses={
+        200: {"description": "Stock update details retrieved"},
+        404: {"description": "Proposal not found"}
+    }
+)
+async def get_stock_update_details(proposal_id: str) -> Dict[str, Any]:
+    """
+    Get details of a specific stock update proposal.
+    """
+    from backend.agents.inventory.hitl_actions import get_pending_stock_update
+    
+    update = get_pending_stock_update(proposal_id)
+    
+    if not update:
+        raise HTTPException(status_code=404, detail=f"Proposal '{proposal_id}' not found")
+    
+    return {
+        "proposal_id": update.proposal_id,
+        "product_id": update.product_id,
+        "current_stock": update.current_stock,
+        "quantity_change": update.quantity_change,
+        "new_stock": update.new_stock,
+        "reason": update.reason,
+        "status": update.status,
+        "created_at": update.created_at.isoformat(),
+        "expires_at": update.expires_at.isoformat() if update.expires_at else None,
+        "approved_by": update.approved_by,
+        "approved_at": update.approved_at.isoformat() if update.approved_at else None,
+        "executed_at": update.executed_at.isoformat() if update.executed_at else None,
+        "rejection_reason": update.rejection_reason
+    }
+
+
+@router.post(
+    "/stock-updates/{proposal_id}/approve",
+    summary="Approve/Reject Stock Update",
+    description="Approve or reject a pending stock update proposal",
+    responses={
+        200: {"description": "Decision processed"},
+        404: {"description": "Proposal not found"},
+        400: {"description": "Invalid request or proposal already processed"}
+    }
+)
+async def approve_or_reject_stock_update(
+    proposal_id: str,
+    request: StockUpdateApprovalRequest
+) -> StockUpdateApprovalResponse:
+    """
+    Approve or reject a pending stock update.
+    
+    If approved, the stock update will be executed immediately.
+    If rejected, the proposal will be marked as rejected with the reason.
+    """
+    from backend.agents.inventory.hitl_actions import (
+        get_pending_stock_update,
+        approve_stock_update,
+        reject_stock_update,
+        execute_stock_update
+    )
+    
+    update = get_pending_stock_update(proposal_id)
+    
+    if not update:
+        raise HTTPException(status_code=404, detail=f"Proposal '{proposal_id}' not found")
+    
+    if update.status != "pending":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Proposal already processed (status: {update.status})"
+        )
+    
+    if request.approved:
+        # Approve the update
+        approve_result = approve_stock_update(proposal_id, approver=request.approver)
+        
+        if not approve_result.get('success'):
+            raise HTTPException(status_code=400, detail=approve_result.get('message'))
+        
+        # Execute the update immediately
+        execute_result = execute_stock_update(proposal_id)
+        
+        if execute_result.get('success'):
+            logger.info(f"Stock update {proposal_id} approved and executed")
+            return StockUpdateApprovalResponse(
+                proposal_id=proposal_id,
+                product_id=update.product_id,
+                status="executed",
+                message=f"Stock updated successfully for Product {update.product_id}. New stock: {execute_result.get('new_stock')}",
+                executed=True,
+                new_stock=execute_result.get('new_stock')
+            )
+        else:
+            logger.error(f"Stock update {proposal_id} approved but execution failed")
+            return StockUpdateApprovalResponse(
+                proposal_id=proposal_id,
+                product_id=update.product_id,
+                status="approved",
+                message=f"Approved but execution failed: {execute_result.get('message')}",
+                executed=False
+            )
+    else:
+        # Reject the update
+        reject_result = reject_stock_update(
+            proposal_id,
+            reason=request.rejection_reason,
+            rejector=request.approver
+        )
+        
+        if not reject_result.get('success'):
+            raise HTTPException(status_code=400, detail=reject_result.get('message'))
+        
+        logger.info(f"Stock update {proposal_id} rejected: {request.rejection_reason}")
+        return StockUpdateApprovalResponse(
+            proposal_id=proposal_id,
+            product_id=update.product_id,
+            status="rejected",
+            message=f"Stock update rejected" + (f": {request.rejection_reason}" if request.rejection_reason else ""),
+            executed=False
+        )
+
+
+@router.post(
+    "/stock-updates/{proposal_id}/execute",
+    summary="Execute Approved Stock Update",
+    description="Execute a previously approved stock update",
+    responses={
+        200: {"description": "Stock update executed"},
+        404: {"description": "Proposal not found"},
+        400: {"description": "Proposal not approved or already executed"}
+    }
+)
+async def execute_approved_stock_update(proposal_id: str) -> Dict[str, Any]:
+    """
+    Execute a previously approved stock update.
+    
+    This endpoint is used if auto-execution was disabled during approval.
+    """
+    from backend.agents.inventory.hitl_actions import (
+        get_pending_stock_update,
+        execute_stock_update
+    )
+    
+    update = get_pending_stock_update(proposal_id)
+    
+    if not update:
+        raise HTTPException(status_code=404, detail=f"Proposal '{proposal_id}' not found")
+    
+    if update.status == "executed":
+        raise HTTPException(status_code=400, detail="Stock update already executed")
+    
+    if update.status != "approved":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Stock update must be approved before execution (status: {update.status})"
+        )
+    
+    result = execute_stock_update(proposal_id)
+    
+    if not result.get('success'):
+        raise HTTPException(status_code=400, detail=result.get('message'))
+    
+    return result

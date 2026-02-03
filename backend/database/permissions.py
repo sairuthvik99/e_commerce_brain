@@ -24,6 +24,7 @@ class AgentType(str, Enum):
 class Tables(str, Enum):
     """Database table names."""
     ORDERS = "orders"
+    ORDER_ITEMS = "order_items"
     DAILY_METRICS = "daily_metrics"
     INVENTORY_SNAPSHOTS = "inventory_snapshots"
     MARKETING_CAMPAIGNS_DAILY = "marketing_campaigns_daily"
@@ -32,10 +33,11 @@ class Tables(str, Enum):
 
 # Agent-to-table access mapping (BASE permissions)
 AGENT_TABLE_ACCESS: Dict[AgentType, Set[Tables]] = {
-    # Sales agent: access to daily_metrics and orders
+    # Sales agent: access to daily_metrics, orders, and order_items
     AgentType.SALES: {
         Tables.DAILY_METRICS,
         Tables.ORDERS,
+        Tables.ORDER_ITEMS,
     },
     
     # Marketing agent: access to daily_metrics and marketing_campaigns_daily
@@ -59,6 +61,7 @@ AGENT_TABLE_ACCESS: Dict[AgentType, Set[Tables]] = {
     # General agent: access to ALL tables
     AgentType.GENERAL: {
         Tables.ORDERS,
+        Tables.ORDER_ITEMS,
         Tables.DAILY_METRICS,
         Tables.INVENTORY_SNAPSHOTS,
         Tables.MARKETING_CAMPAIGNS_DAILY,
@@ -68,6 +71,7 @@ AGENT_TABLE_ACCESS: Dict[AgentType, Set[Tables]] = {
     # Supervisor: access to ALL tables (for routing decisions)
     AgentType.SUPERVISOR: {
         Tables.ORDERS,
+        Tables.ORDER_ITEMS,
         Tables.DAILY_METRICS,
         Tables.INVENTORY_SNAPSHOTS,
         Tables.MARKETING_CAMPAIGNS_DAILY,
@@ -194,11 +198,17 @@ def validate_agent_access(agent_type: str, requested_tables: List[str], include_
 # This maps DataLoader methods to the tables they access
 DATA_LOADER_METHOD_TABLES: Dict[str, Set[str]] = {
     'load_sales_data': {'daily_metrics', 'orders'},
+    'load_top_products_data': {'orders', 'order_items'},
     'load_inventory_data': {'daily_metrics', 'inventory_snapshots'},
     'load_inventory_baseline': {'daily_metrics', 'inventory_snapshots'},
     'load_marketing_data': {'daily_metrics', 'marketing_campaigns_daily'},
+    'load_channel_data': {'marketing_campaigns_daily'},
     'load_support_data': {'daily_metrics', 'support_tickets'},
     'get_yesterday_date': {'daily_metrics'},  # Accessible by all
+    'load_all_products_inventory': {'inventory_snapshots'},  # New: List all products
+    'load_product_inventory': {'inventory_snapshots'},  # New: Get single product
+    'search_products': {'inventory_snapshots'},  # New: Search products
+    'update_product_stock': {'inventory_snapshots'},  # New: Update stock (HITL protected)
 }
 
 

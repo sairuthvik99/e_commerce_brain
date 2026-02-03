@@ -150,8 +150,8 @@ class ApiService {
     return this.request(API_CONFIG.ENDPOINTS.JOB_ACTIONS(jobId));
   }
 
-  async approveProposal(proposalId, approvedIds, rejectedIds, approver = null, notes = null) {
-    return this.request(API_CONFIG.ENDPOINTS.PROPOSALS_APPROVE(proposalId), {
+  async approveProposal(jobId, approvedIds, rejectedIds, approver = null, notes = null) {
+    return this.request(API_CONFIG.ENDPOINTS.PROPOSALS_APPROVE(jobId), {
       method: 'POST',
       body: JSON.stringify({
         approved_action_ids: approvedIds,
@@ -159,6 +159,62 @@ class ApiService {
         approver,
         notes
       })
+    });
+  }
+
+  // ============================================================
+  // Stock Update HITL Endpoints
+  // ============================================================
+
+  /**
+   * Get all pending stock update proposals
+   * @param {string} status - Optional status filter (pending, approved, rejected, executed)
+   * @returns {Promise<Object>} List of stock update actions
+   */
+  async getStockUpdates(status = null) {
+    let endpoint = API_CONFIG.ENDPOINTS.STOCK_UPDATES;
+    if (status) {
+      endpoint += `?status=${status}`;
+    }
+    return this.request(endpoint);
+  }
+
+  /**
+   * Get details of a specific stock update proposal
+   * @param {string} proposalId - The proposal ID
+   * @returns {Promise<Object>} Stock update details
+   */
+  async getStockUpdateDetail(proposalId) {
+    return this.request(API_CONFIG.ENDPOINTS.STOCK_UPDATE_DETAIL(proposalId));
+  }
+
+  /**
+   * Approve or reject a stock update proposal
+   * @param {string} proposalId - The proposal ID
+   * @param {boolean} approved - Whether to approve (true) or reject (false)
+   * @param {string} approver - Who is approving/rejecting
+   * @param {string} rejectionReason - Reason for rejection (if rejected)
+   * @returns {Promise<Object>} Approval result
+   */
+  async approveStockUpdate(proposalId, approved, approver = null, rejectionReason = null) {
+    return this.request(API_CONFIG.ENDPOINTS.STOCK_UPDATE_APPROVE(proposalId), {
+      method: 'POST',
+      body: JSON.stringify({
+        approved,
+        approver,
+        rejection_reason: rejectionReason
+      })
+    });
+  }
+
+  /**
+   * Execute an approved stock update
+   * @param {string} proposalId - The proposal ID to execute
+   * @returns {Promise<Object>} Execution result
+   */
+  async executeStockUpdate(proposalId) {
+    return this.request(API_CONFIG.ENDPOINTS.STOCK_UPDATE_EXECUTE(proposalId), {
+      method: 'POST'
     });
   }
 
@@ -175,6 +231,87 @@ class ApiService {
 
   async getMemoryInsights(jobId) {
     return this.request(API_CONFIG.ENDPOINTS.MEMORY_INSIGHTS(jobId));
+  }
+
+  async getMemoryStats() {
+    return this.request(API_CONFIG.ENDPOINTS.MEMORY_STATS);
+  }
+
+  /**
+   * Get short-term memory (conversation history)
+   * @param {number} limit - Max entries to retrieve (1-10)
+   * @returns {Promise<Object>} Short-term memory entries
+   */
+  async getShortTermMemory(limit = 10) {
+    return this.request(`${API_CONFIG.ENDPOINTS.MEMORY_SHORT_TERM}?limit=${limit}`);
+  }
+
+  /**
+   * Clear short-term memory
+   * @returns {Promise<Object>} Clear result
+   */
+  async clearShortTermMemory() {
+    return this.request(API_CONFIG.ENDPOINTS.MEMORY_SHORT_TERM, {
+      method: 'DELETE'
+    });
+  }
+
+  /**
+   * Get long-term memory (preferences, facts, knowledge)
+   * @returns {Promise<Object>} Long-term memory data
+   */
+  async getLongTermMemory() {
+    return this.request(API_CONFIG.ENDPOINTS.MEMORY_LONG_TERM);
+  }
+
+  /**
+   * Clear long-term memory
+   * @returns {Promise<Object>} Clear result
+   */
+  async clearLongTermMemory() {
+    return this.request(API_CONFIG.ENDPOINTS.MEMORY_LONG_TERM, {
+      method: 'DELETE'
+    });
+  }
+
+  /**
+   * Save a preference to long-term memory
+   * @param {string} key - Preference key
+   * @param {any} value - Preference value
+   * @returns {Promise<Object>} Save result
+   */
+  async savePreference(key, value) {
+    return this.request(API_CONFIG.ENDPOINTS.MEMORY_SAVE_PREFERENCE, {
+      method: 'POST',
+      body: JSON.stringify({ key, value })
+    });
+  }
+
+  /**
+   * Save a fact to long-term memory
+   * @param {string} fact - The fact to store
+   * @param {string} category - Category of the fact
+   * @returns {Promise<Object>} Save result
+   */
+  async saveFact(fact, category = 'general') {
+    return this.request(API_CONFIG.ENDPOINTS.MEMORY_SAVE_FACT, {
+      method: 'POST',
+      body: JSON.stringify({ fact, category })
+    });
+  }
+
+  /**
+   * Save knowledge to long-term memory
+   * @param {string} topic - Topic/title
+   * @param {string} content - Knowledge content
+   * @param {string} source - Source of knowledge
+   * @returns {Promise<Object>} Save result
+   */
+  async saveKnowledge(topic, content, source = 'user') {
+    return this.request(API_CONFIG.ENDPOINTS.MEMORY_SAVE_KNOWLEDGE, {
+      method: 'POST',
+      body: JSON.stringify({ topic, content, source })
+    });
   }
 
   // ============================================================

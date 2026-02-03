@@ -26,6 +26,15 @@ CREATE TABLE IF NOT EXISTS orders (
     created_date DATE
 );
 
+CREATE TABLE IF NOT EXISTS order_items (
+    item_id SERIAL PRIMARY KEY,
+    order_id INT,
+    product_id INT,
+    quantity INT,
+    unit_price NUMERIC,
+    item_total NUMERIC
+);
+
 CREATE TABLE IF NOT EXISTS inventory_snapshots (
     snapshot_id SERIAL PRIMARY KEY,
     product_id INT,
@@ -120,19 +129,62 @@ for day in range(DAYS):
         orders_today = random.randint(45, 55)
 
     for _ in range(orders_today):
+        # Generate product count for this order
+        product_count = random.randint(1, 4)
+        order_timestamp = fake.date_time_between(start_date=date, end_date=date + timedelta(days=1))
+        customer_id = random.choice(CUSTOMERS)
+        region = random.choice(REGIONS)
+        
+        # Generate order items first to calculate total order value
+        order_items = []
+        total_order_value = 0
+        # Select random products for this order (no duplicates)
+        selected_products = random.sample(PRODUCTS, min(product_count, len(PRODUCTS)))
+        
+        for product_id in selected_products:
+            quantity = random.randint(1, 3)
+            unit_price = round(random.uniform(200, 1500), 2)
+            item_total = round(quantity * unit_price, 2)
+            total_order_value += item_total
+            order_items.append({
+                'product_id': product_id,
+                'quantity': quantity,
+                'unit_price': unit_price,
+                'item_total': item_total
+            })
+        
+        # Insert the order
         cur.execute("""
         INSERT INTO orders
         (order_timestamp, customer_id, region,
          order_value, product_count, created_date)
         VALUES (%s, %s, %s, %s, %s, %s)
+        RETURNING order_id
         """, (
-            fake.date_time_between(start_date=date, end_date=date + timedelta(days=1)),
-            random.choice(CUSTOMERS),
-            random.choice(REGIONS),
-            round(random.uniform(500, 5000), 2),
-            random.randint(1, 4),
+            order_timestamp,
+            customer_id,
+            region,
+            round(total_order_value, 2),
+            product_count,
             date
         ))
+        
+        # Get the order_id for the inserted order
+        order_id = cur.fetchone()[0]
+        
+        # Insert order items
+        for item in order_items:
+            cur.execute("""
+            INSERT INTO order_items
+            (order_id, product_id, quantity, unit_price, item_total)
+            VALUES (%s, %s, %s, %s, %s)
+            """, (
+                order_id,
+                item['product_id'],
+                item['quantity'],
+                item['unit_price'],
+                item['item_total']
+            ))
 
 for day in range(DAYS):
     date = START_DATE + timedelta(days=day)

@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { MESSAGE_TYPES, MESSAGE_STATUS } from '../../context/ChatContext';
 import HITLActions from './HITLActions';
+import StockUpdateHITL from './StockUpdateHITL';
 import PersonIcon from '@mui/icons-material/Person';
 import PsychologyIcon from '@mui/icons-material/Psychology';
 import LightbulbIcon from '@mui/icons-material/Lightbulb';
+import InventoryIcon from '@mui/icons-material/Inventory';
 import './ChatMessage.css';
 
 /**
@@ -13,11 +15,20 @@ import './ChatMessage.css';
 function ChatMessage({ message }) {
   const { type, content, status, timestamp, jobId, result } = message;
   const [showHITL, setShowHITL] = useState(false);
+  const [showStockHITL, setShowStockHITL] = useState(false);
 
   const isUser = type === MESSAGE_TYPES.USER;
   const isLoading = status === MESSAGE_STATUS.SENDING || status === MESSAGE_STATUS.PROCESSING;
   const isError = status === MESSAGE_STATUS.FAILED;
   const isCancelled = status === MESSAGE_STATUS.CANCELLED;
+
+  // Check if the message content indicates a stock update proposal
+  const hasStockUpdateProposal = content && (
+    content.includes('Stock update proposal created') ||
+    content.includes('requires human approval') ||
+    content.includes('HITL interface to approve') ||
+    content.includes('stock update') && content.includes('approval')
+  );
 
   const formatTimestamp = (ts) => {
     return new Date(ts).toLocaleTimeString([], { 
@@ -88,6 +99,24 @@ function ChatMessage({ message }) {
       </div>
       <div className="message-bubble">
         {renderContent()}
+        
+        {/* Stock Update HITL Button */}
+        {!isUser && hasStockUpdateProposal && !showStockHITL && (
+          <button 
+            className="stock-update-btn"
+            onClick={() => setShowStockHITL(true)}
+          >
+            <InventoryIcon sx={{ fontSize: 18, marginRight: '4px' }} /> Review Stock Update
+          </button>
+        )}
+        
+        {/* Stock Update HITL Panel */}
+        {showStockHITL && (
+          <StockUpdateHITL 
+            onClose={() => setShowStockHITL(false)} 
+            autoRefresh={false}
+          />
+        )}
         
         {/* HITL Recommendations Button */}
         {showRecommendationsButton && !showHITL && (

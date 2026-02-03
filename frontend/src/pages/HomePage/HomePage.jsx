@@ -64,7 +64,7 @@ function HomePage() {
   if (loading) {
     return (
       <div className="home-page loading">
-        <LoadingSpinner size="large" text="Loading dashboard..." />
+        <LoadingSpinner variant="dashboard" text="Connecting to services..." />
       </div>
     );
   }

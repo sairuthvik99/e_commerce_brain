@@ -52,6 +52,12 @@ class ROIAnalysisInput(BaseModel):
     days: int = Field(default=7, description="Number of days to analyze")
 
 
+class ChannelAnalysisInput(BaseModel):
+    """Input schema for channel analysis."""
+    question: str = Field(description="The user's question about marketing channels")
+    days: int = Field(default=7, description="Number of days to analyze")
+
+
 class CampaignComparisonInput(BaseModel):
     """Input schema for campaign comparison."""
     question: str = Field(description="The user's question about comparing campaigns")
@@ -528,6 +534,46 @@ def analyze_marketing_sales_correlation(question: str, days: int = 7) -> Dict[st
     return result
 
 
+@tool("analyze_marketing_channels", args_schema=ChannelAnalysisInput)
+def analyze_marketing_channels(question: str, days: int = 7) -> Dict[str, Any]:
+    """
+    Analyze marketing channels used for campaigns.
+    
+    Use this tool when the user asks:
+    - "What channels are used for campaigning?"
+    - "List all marketing channels"
+    - "Which channels are we advertising on?"
+    - "Channel performance breakdown"
+    - "What platforms are we using for marketing?"
+    - "Show me the campaign channels"
+    
+    Returns list of channels and their performance metrics.
+    """
+    logger.info(f"[Tool:analyze_marketing_channels] Question: {question}, days: {days}")
+    
+    analyzer = get_analyzer()
+    
+    # Load channel-specific data
+    channel_data = analyzer.data_loader.load_channel_data(days=days)
+    
+    combined_data = {
+        **channel_data,
+        "analysis_period_days": days
+    }
+    
+    result = analyzer.analyze(
+        question=question,
+        data=combined_data,
+        analysis_type="channel_analysis",
+        additional_context="List all marketing channels being used and provide performance breakdown for each channel including impressions, clicks, spend, and conversions."
+    )
+    
+    result["raw_data"] = combined_data
+    result["tool"] = "analyze_marketing_channels"
+    
+    return result
+
+
 # ==================== Tool Registry ====================
 
 def get_marketing_tools() -> List:
@@ -547,6 +593,7 @@ def get_marketing_tools() -> List:
         identify_conversion_drop_cause,
         get_marketing_summary,
         analyze_marketing_sales_correlation,
+        analyze_marketing_channels,
     ]
 
 

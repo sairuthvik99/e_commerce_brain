@@ -31,6 +31,14 @@ class AgentContext(BaseModel):
         default_factory=dict,
         description="Outputs from other agents (for data sharing)"
     )
+    long_term_context: str = Field(
+        default="",
+        description="Long-term memory context (preferences, facts, knowledge)"
+    )
+    conversation_history: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        description="Recent conversation history"
+    )
 
 
 class AnalysisResult(BaseModel):
@@ -240,7 +248,9 @@ class BaseAgent(ABC):
         context = AgentContext(
             question=state.get("question", ""),
             intent=state.get("intent", ""),
-            other_agent_outputs=state.get("agent_outputs", {})
+            other_agent_outputs=state.get("agent_outputs", {}),
+            long_term_context=state.get("long_term_context", ""),
+            conversation_history=state.get("conversation_history", [])
         )
         
         # Execute agent

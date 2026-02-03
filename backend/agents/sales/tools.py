@@ -47,6 +47,13 @@ class ProductContributionInput(BaseModel):
     top_n: int = Field(default=5, description="Number of top products to analyze")
 
 
+class TopProductsInput(BaseModel):
+    """Input schema for top selling products analysis."""
+    question: str = Field(description="The user's question about top selling products")
+    days: int = Field(default=7, description="Number of days to analyze")
+    top_n: int = Field(default=5, description="Number of top products to return")
+
+
 class AnomalyDetectionInput(BaseModel):
     """Input schema for anomaly detection."""
     question: str = Field(description="The user's question about anomalies")
@@ -408,6 +415,42 @@ def get_sales_summary(question: str, days: int = 7) -> Dict[str, Any]:
     return result
 
 
+@tool("analyze_top_products", args_schema=TopProductsInput)
+def analyze_top_products(question: str, days: int = 7, top_n: int = 5) -> Dict[str, Any]:
+    """
+    Analyze top selling products by quantity and revenue.
+    
+    Use this tool when the user asks:
+    - "What are the top 5 products that got sold?"
+    - "Which products sell the most?"
+    - "Best selling products"
+    - "Top products by revenue"
+    - "Product sales ranking"
+    
+    Returns analysis of top products by quantity sold and revenue generated.
+    """
+    logger.info(f"[Tool:analyze_top_products] Question: {question}, days: {days}, top_n: {top_n}")
+    
+    analyzer = get_analyzer()
+    
+    # Load top products data
+    top_products_data = analyzer.data_loader.load_top_products_data(days=days, top_n=top_n)
+    
+    # Let LLM analyze the data
+    result = analyzer.analyze(
+        question=question,
+        data=top_products_data,
+        analysis_type="top_products_analysis",
+        additional_context=f"Analyzing top {top_n} products over the last {days} days. Present both quantity-based and revenue-based rankings."
+    )
+    
+    # Add raw data to result
+    result["raw_data"] = top_products_data
+    result["tool"] = "analyze_top_products"
+    
+    return result
+
+
 # ==================== Tool Registry ====================
 
 def get_sales_tools() -> List:
@@ -425,6 +468,7 @@ def get_sales_tools() -> List:
         identify_drop_cause,
         analyze_regional_performance,
         get_sales_summary,
+        analyze_top_products,
     ]
 
 

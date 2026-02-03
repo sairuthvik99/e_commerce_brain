@@ -16,6 +16,18 @@ from backend.agents.inventory.tools import (
     prioritize_restock,
     get_inventory_summary,
     compare_stockout_severity,
+    list_all_products,
+    get_product_details,
+    propose_stock_update,
+)
+from backend.agents.inventory.hitl_actions import (
+    store_pending_stock_update,
+    get_pending_stock_update,
+    get_all_pending_stock_updates,
+    approve_stock_update,
+    reject_stock_update,
+    execute_stock_update,
+    get_pending_updates_for_display,
 )
 
 __all__ = [
@@ -31,4 +43,15 @@ __all__ = [
     "prioritize_restock",
     "get_inventory_summary",
     "compare_stockout_severity",
+    "list_all_products",
+    "get_product_details",
+    "propose_stock_update",
+    # HITL Actions
+    "store_pending_stock_update",
+    "get_pending_stock_update",
+    "get_all_pending_stock_updates",
+    "approve_stock_update",
+    "reject_stock_update",
+    "execute_stock_update",
+    "get_pending_updates_for_display",
 ]
