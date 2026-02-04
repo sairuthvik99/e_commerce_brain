@@ -69,30 +69,3 @@ def route_agents(intent: str) -> List[str]:
     logger.info(f"[Router] Intent '{intent}' → Agents: {agents}")
     
     return agents
-
-
-def add_routing_rule(intent: str, agents: List[str]) -> None:
-    """
-    Add or update a routing rule (for testing or future dynamic routing).
-    
-    Args:
-        intent: Intent label
-        agents: List of agent names
-    """
-    # Validate agents
-    invalid_agents = [a for a in agents if a not in VALID_AGENTS]
-    if invalid_agents:
-        raise ValueError(f"Invalid agents: {invalid_agents}. Valid agents: {VALID_AGENTS}")
-    
-    ROUTING_MAP[intent] = agents
-    logger.info(f"[Router] Added/updated rule: {intent} → {agents}")
-
-
-def get_all_routes() -> dict:
-    """
-    Get all current routing rules (useful for debugging/introspection).
-    
-    Returns:
-        Dict mapping intents to agent lists
-    """
-    return ROUTING_MAP.copy()

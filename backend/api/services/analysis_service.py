@@ -220,7 +220,7 @@ class AnalysisService:
                 "timestamp": datetime.utcnow().isoformat()
             })
             
-            # Always use real LangGraph workflow
+            # LangGraph workflow
             logger.info(f"Running LangGraph workflow for job {job_id}")
             await self._run_langgraph_workflow(job_id, job.question, job.context)
             

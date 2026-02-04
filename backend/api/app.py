@@ -43,13 +43,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     
     # Initialize connections (if needed)
     try:
-        # Database connection pool initialization
-        logger.info("Initializing database connection pool...")
-        # await init_database()  # Uncomment when database module is ready
-        
-        # Vector DB initialization
-        logger.info("Initializing vector database connection...")
-        # await init_vector_db()  # Uncomment when vector_db module is ready
         
         # Pre-initialize the LangGraph (singleton pattern)
         # This ensures graph and all agents are built once at startup
@@ -80,14 +73,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     logger.info("🛑 Shutting down AI Operations Brain API...")
     logger.info("=" * 60)
     
-    try:
-        # Cleanup connections
-        logger.info("Closing database connections...")
-        # await close_database()  # Uncomment when database module is ready
-        
-        logger.info("Closing vector database connections...")
-        # await close_vector_db()  # Uncomment when vector_db module is ready
-        
+    try:        
         logger.info("✅ Cleanup completed successfully")
         
     except Exception as e:

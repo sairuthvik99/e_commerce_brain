@@ -1,6 +1,5 @@
-version: "3.9"
-
 services:
+  # PostgreSQL Database
   postgres:
     image: postgres:15
     container_name: ecommerce_postgres
@@ -12,6 +11,88 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d ecommerce_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ecommerce_network
+
+  # Backend API Service
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: ecommerce_backend
+    environment:
+      # Database
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: ecommerce_db
+      DB_USER: user
+      DB_PASSWORD: password%40123
+      DATABASE_URL: postgresql://user:password%40123@postgres:5432/ecommerce_db
+      # Azure/OpenAI
+      DIAL_API_KEY: ${DIAL_API_KEY}
+      AZURE_ENDPOINT: ${AZURE_ENDPOINT}
+      API_VERSION: ${API_VERSION}
+      AZURE_EMBEDDING_DEPLOYMENT: ${AZURE_EMBEDDING_DEPLOYMENT}
+      AZURE_OPENAI_DEPLOYMENT: ${AZURE_OPENAI_DEPLOYMENT}
+      # MCP Server
+      MCP_SERVER_HOST: ${MCP_SERVER_HOST:-localhost}
+      MCP_SERVER_PORT: ${MCP_SERVER_PORT:-8080}
+      # Langfuse
+      LANGFUSE_ENABLED: ${LANGFUSE_ENABLED:-true}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY}
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY}
+      LANGFUSE_BASE_URL: ${LANGFUSE_BASE_URL}
+      # Pinecone
+      PINECONE_API_KEY: ${PINECONE_API_KEY}
+      PINECONE_ENVIRONMENT: ${PINECONE_ENVIRONMENT}
+      PINECONE_INDEX: ${PINECONE_INDEX}
+      # API Settings
+      API_HOST: "0.0.0.0"
+      API_PORT: "8000"
+      API_PREFIX: /api/v1
+      DEBUG: ${DEBUG:-false}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - ecommerce_network
+    restart: unless-stopped
+
+  # Frontend Service (Nginx serving React build)
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: ecommerce_frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - ecommerce_network
+    restart: unless-stopped
 
 volumes:
   postgres_data:
+
+networks:
+  ecommerce_network:
+    driver: bridge

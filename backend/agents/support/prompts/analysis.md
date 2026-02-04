@@ -658,10 +658,10 @@ version: 2.0
 ---
 
 Think step-by-step:
-1. What is the user asking about support? (volume, sentiment, categories, refunds, correlation)
-2. What do the numbers show? (current vs baseline)
-3. What's the severity? (spike %, sentiment %, concentration)
-4. Is this getting better or worse? (trend direction)
-5. What's causing this and what should be done?
+- Step 1: What is the user asking about support? (volume, sentiment, categories, refunds, correlation)
+- Step 2: What do the numbers show? (current vs baseline)
+- Step 3: What's the severity? (spike %, sentiment %, concentration)
+- Step 4: Is this getting better or worse? (trend direction)
+- Step 5: What's causing this and what should be done?
 
 Analyze the data thoroughly and respond with a valid JSON object containing your finding, evidence, confidence, and analysis_details. Ensure the finding directly answers the user's question with specific numbers, percentages, and root cause explanation.

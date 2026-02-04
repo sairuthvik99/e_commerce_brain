@@ -625,10 +625,10 @@ version: 2.0
 ---
 
 Think step-by-step:
-1. What marketing insight is the user seeking?
-2. What do the conversion and spend metrics reveal?
-3. How does efficiency compare to baseline (conversion change - spend change)?
-4. Which campaigns/channels are driving or dragging performance?
-5. What specific action should be recommended?
+- Step 1: What marketing insight is the user seeking?
+- Step 2: What do the conversion and spend metrics reveal?
+- Step 3: How does efficiency compare to baseline (conversion change - spend change)?
+- Step 4: Which campaigns/channels are driving or dragging performance?
+- Step 5: What specific action should be recommended?
 
 Analyze the data thoroughly and respond with a valid JSON object containing your finding, evidence, confidence, and analysis_details. Ensure the finding directly answers the user's question with specific percentages, ROAS figures, and actionable recommendations.

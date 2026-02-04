@@ -666,10 +666,10 @@ version: 2.0
 ---
 
 Think step-by-step:
-1. What is the user asking about sales? (revenue, orders, AOV, trend, comparison)
-2. What do the numbers show? (current vs baseline)
-3. How should I decompose revenue? (Revenue = Orders × AOV — which drove the change?)
-4. Is this normal variance or an anomaly?
-5. What's the primary cause and recommended action?
+- Step 1: What is the user asking about sales? (revenue, orders, AOV, trend, comparison)
+- Step 2: What do the numbers show? (current vs baseline)
+- Step 3: How should I decompose revenue? (Revenue = Orders × AOV — which drove the change?)
+- Step 4: Is this normal variance or an anomaly?
+- Step 5: What's the primary cause and recommended action?
 
 Analyze the data thoroughly and respond with a valid JSON object containing your finding, evidence, confidence, and analysis_details. Ensure the finding directly answers the user's question with specific ₹ figures, percentages, and root cause explanation.

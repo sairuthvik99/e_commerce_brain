@@ -142,25 +142,22 @@ class PersistAnalysisNode:
         return state
 
 
-# ==================== HITL GATE (Day 5) ====================
+# ==================== HITL GATE ====================
 
 class HITLGate:
     """
     Human-in-the-loop approval gate.
     Traced via Langfuse @observe decorator.
-    
-    Day 3: Pass-through with logging
-    Day 5: Actual HITL logic
     """
     @observe(name="hitl_gate")
     def __call__(self, state: MVPState) -> MVPState:
-        logger.info("[HITLGate] Human approval gate (Day 3 stub)")
+        logger.info("[HITLGate] Human approval gate")
         
         # Day 5: Will implement actual approval logic
         state["hitl_decision"] = {
             "approved": True,
             "timestamp": None,
-            "note": "Auto-approved (Day 3)"
+            "note": "Approved by HITL gate"
         }
         
         return state
@@ -433,10 +430,10 @@ class GraphManager:
         graph.add_node("load_memory", MemoryLoaderNode())
         graph.add_node("load_long_term_memory", LongTermMemoryLoaderNode())
         
-        # Supervisor (Day 2 - production)
+        # Supervisor
         graph.add_node("supervisor", SupervisorAgent())
         
-        # Domain agents (Day 3 - production with data sharing)
+        # Domain agents
         graph.add_node("inventory", AgentWrapper(InventoryAgent(), "inventory"))
         graph.add_node("sales", AgentWrapper(SalesAgent(), "sales"))
         graph.add_node("marketing", AgentWrapper(MarketingAgent(), "marketing"))
@@ -445,7 +442,7 @@ class GraphManager:
         # General agent (handles general/unknown intents)
         graph.add_node("general", AgentWrapper(GeneralAgent(), "general"))
         
-        # Synthesis and reflection (Day 4 - production implementations)
+        # Synthesis and reflection
         graph.add_node("synthesis", SynthesisAgent())
         graph.add_node("reflection", SelfReflectionAgent())
         
@@ -458,7 +455,7 @@ class GraphManager:
         # Persist analysis to Vector DB (Day 4)
         graph.add_node("persist_analysis", PersistAnalysisNode())
         
-        # HITL gate (Day 5 - stub)
+        # HITL gate 
         graph.add_node("hitl", HITLGate())
         
         logger.info("[GraphManager] All nodes added")

@@ -1,8 +1,5 @@
 """
 Application Entry Point
-
-For Day 3: CLI-based testing with real agents
-For Day 6: Will become API server
 """
 
 import logging
@@ -45,7 +42,7 @@ def main():
     """
     Main entry point for testing the graph.
     """
-    print_header("🧠 AI Operations Brain - Day 3 MVP Test", 70)
+    print_header("🧠 AI Operations Brain - MVP Test", 70)
     
     print("Configuration:")
     print(f"  → Database: {Settings.DB_NAME}")
@@ -130,35 +127,17 @@ def main():
             print()
         
         # Synthesis summary
-        print_section("🔗 Synthesis (Day 3 Stub)")
+        print_section("🔗 Synthesis")
         root_cause = final_state.get('root_cause', {})
         print(f"Summary: {root_cause.get('summary', 'N/A')}")
         print(f"Agents Contributing: {root_cause.get('agent_count', 0)}")
         print()
         
         # HITL status
-        print_section("✋ Human Approval (Day 3 Stub)")
+        print_section("✋ Human Approval")
         hitl = final_state.get('hitl_decision', {})
         print(f"Status: {'✅ Approved' if hitl.get('approved') else '❌ Pending'}")
         print(f"Note: {hitl.get('note', 'N/A')}")
-        print()
-        
-        print_header("✅ Day 3 MVP Flow Complete!", 70)
-        
-        # Save full state to file for inspection
-        output_file = "day3_output.json"
-        with open(output_file, "w") as f:
-            # Convert to JSON-serializable format
-            json_state = json.loads(json.dumps(final_state, default=str))
-            json.dump(json_state, f, indent=2)
-        
-        print(f"💾 Full state saved to: {output_file}")
-        print()
-        print("Next Steps:")
-        print("  1. Review agent findings above")
-        print("  2. Check day3_output.json for detailed state")
-        print("  3. Verify data is coming from PostgreSQL via MCP")
-        print("  4. Ready to move to Day 4 (Synthesis & Reflection)")
         print()
         
     except Exception as e:

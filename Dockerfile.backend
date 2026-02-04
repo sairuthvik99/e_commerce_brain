@@ -1,0 +1,47 @@
+# Backend Dockerfile - Optimized for build speed
+# Uses layer caching for faster rebuilds
+
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies first (rarely changes - cached layer)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    libpq5 \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Copy only requirements first (for better caching)
+COPY requirements.txt .
+
+# Remove Windows line endings, filter out Windows-only packages, and install
+RUN sed -i 's/\r$//' requirements.txt && \
+    grep -vE "^(pywin32|win32_setctime)" requirements.txt > requirements-linux.txt && \
+    pip install --upgrade pip && \
+    pip install -r requirements-linux.txt
+
+# Copy application code (changes most frequently - last layer)
+COPY backend/ ./backend/
+COPY scripts/ ./scripts/
+
+# Create non-root user for security
+RUN useradd --create-home --shell /bin/bash appuser && \
+    chown -R appuser:appuser /app
+USER appuser
+
+# Set environment variables
+ENV PYTHONPATH=/app
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# Expose port
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')" || exit 1
+
+# Run the application
+CMD ["uvicorn", "backend.api.app:app", "--host", "0.0.0.0", "--port", "8000"]

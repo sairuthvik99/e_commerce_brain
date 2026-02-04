@@ -556,10 +556,10 @@ version: 2.0
 ---
 
 Think step-by-step:
-1. What specific inventory insight is the user seeking?
-2. What does the data reveal about stockouts, severity, and impact?
-3. How does this compare to baseline/historical performance?
-4. What are the business implications (revenue impact)?
-5. What prioritized actions should be recommended?
+- Step 1: What specific inventory insight is the user seeking?
+- Step 2: What does the data reveal about stockouts, severity, and impact?
+- Step 3: How does this compare to baseline/historical performance?
+- Step 4: What are the business implications (revenue impact)?
+- Step 5: What prioritized actions should be recommended?
 
 Analyze the data thoroughly and respond with a valid JSON object containing your finding, evidence, confidence, and analysis_details. Ensure the finding directly answers the user's question with specific numbers and business impact.
