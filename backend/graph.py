@@ -26,7 +26,7 @@ from .agents.support.agent import SupportAgent
 from .agents.general.agent import GeneralAgent
 from .agents.supervisor.agent import SupervisorAgent
 
-# Day 4: Synthesis and Reflection implementations
+# Synthesis and Reflection implementations
 from .synthesis.synthesis import SynthesisAgent
 from .reflection.agent import SelfReflectionAgent
 from .vector_db.history_store import HistoryStore
@@ -61,8 +61,8 @@ class MVPState(TypedDict, total=False):
         reflection_result: Result of reflection audit (ReflectionResult model)
         quality_score: Overall quality score from reflection
         conflicts: List of detected conflicts between agents
-        action_proposal: Proposed action (Day 5)
-        hitl_decision: Human decision (Day 5)
+        action_proposal: Proposed action
+        hitl_decision: Human decision
         timestamp: Timestamp of analysis
         error: Error message if something fails
     """
@@ -153,7 +153,7 @@ class HITLGate:
     def __call__(self, state: MVPState) -> MVPState:
         logger.info("[HITLGate] Human approval gate")
         
-        # Day 5: Will implement actual approval logic
+        # Will implement actual approval logic
         state["hitl_decision"] = {
             "approved": True,
             "timestamp": None,
@@ -452,7 +452,7 @@ class GraphManager:
         # Long-term memory saver (extracts and saves insights)
         graph.add_node("save_long_term_memory", LongTermMemorySaverNode())
         
-        # Persist analysis to Vector DB (Day 4)
+        # Persist analysis to Vector DB
         graph.add_node("persist_analysis", PersistAnalysisNode())
         
         # HITL gate 

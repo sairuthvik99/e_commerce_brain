@@ -211,7 +211,7 @@ class GeneralAgent:
         context: GeneralAgentContext
     ) -> AgentOutput:
         """Execute using direct LLM call (no tools)."""
-        logger.info("[GeneralAgent] Executing direct LLM call...")
+        logger.info("[GeneralAgent] Executing LLM call...")
         
         # Load all available data
         all_data = self._load_all_data(days=7)

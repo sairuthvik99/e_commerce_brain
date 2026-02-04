@@ -140,7 +140,6 @@ class DataLoader:
     
     Wraps async MCP client calls in sync interface.
     Falls back to DirectDataLoader if MCP fails.
-    Compatible with Jupyter notebooks via nest_asyncio.
     """
     
     def __init__(self, use_direct: bool = False):

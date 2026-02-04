@@ -205,8 +205,8 @@ class SalesAgent:
         question: str, 
         context: SalesAgentContext
     ) -> AgentOutput:
-        """Execute using direct LLM call (no tools)."""
-        logger.info("[SalesAgent] Executing direct LLM call...")
+        """Execute using direct LLM call."""
+        logger.info("[SalesAgent] Executing LLM call...")
         
         # Load sales data
         sales_data = self.data_loader.load_sales_data(days=7)

@@ -205,10 +205,10 @@ DATA_LOADER_METHOD_TABLES: Dict[str, Set[str]] = {
     'load_channel_data': {'marketing_campaigns_daily'},
     'load_support_data': {'daily_metrics', 'support_tickets'},
     'get_yesterday_date': {'daily_metrics'},  # Accessible by all
-    'load_all_products_inventory': {'inventory_snapshots'},  # New: List all products
-    'load_product_inventory': {'inventory_snapshots'},  # New: Get single product
-    'search_products': {'inventory_snapshots'},  # New: Search products
-    'update_product_stock': {'inventory_snapshots'},  # New: Update stock (HITL protected)
+    'load_all_products_inventory': {'inventory_snapshots'},  # List all products
+    'load_product_inventory': {'inventory_snapshots'},  # Get single product
+    'search_products': {'inventory_snapshots'},  # Search products
+    'update_product_stock': {'inventory_snapshots'},  # Update stock (HITL protected)
 }
 
 

@@ -68,7 +68,7 @@ class AgentDataLoader:
         self.allow_cross_domain = allow_cross_domain
         self._data_loader = DataLoader(use_direct=use_direct)
         
-        # Cache allowed methods for this agent (with cross-domain if enabled)
+        # Cache allowed methods for this agent 
         self._allowed_methods = set(
             get_allowed_data_methods(self.agent_type, include_cross_domain=allow_cross_domain)
         )
