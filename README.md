@@ -153,15 +153,105 @@ AI system memory, decisions, and audit trail.
 
 ## How to run
 
-1. Copy `.env.example` to `.env` and add your DIAL API key.
-2. Install dependencies:
-    ```
-    pip install pydantic langchain langgraph python-dotenv
-    ```
-3. Run the app:
-    ```
-    python backend/app.py
-    ```
+This project can be run locally (dev), using Docker, or in a containerized environment. The repo contains a backend FastAPI service, a CLI tester (`backend/app.py`), a small React frontend (Vite), helper scripts, and a set of integration tests.
+
+Recommended platform versions
+- Python: 3.11 (matches Dockerfile)
+- Node.js: 20.x (matches frontend Dockerfile)
+
+Quick start — development (Python + frontend)
+1. Copy `.env.example` to `.env` and fill in real values (do NOT commit secrets).
+   - If a password contains special characters (e.g. `@`) URL-encode them when used in `DATABASE_URL` (e.g. `@` -> `%40`).
+2. Create a virtual environment and install Python dependencies:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate   # macOS / Linux
+.\\.venv\\Scripts\\activate  # Windows (PowerShell)
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+3. Run the backend API locally (development):
+
+```bash
+# Runs uvicorn with the FastAPI app and honors settings in env
+python backend/run_api.py
+```
+
+4. (Optional) Run the CLI graph test to exercise agents locally:
+
+```bash
+python backend/app.py
+```
+
+Frontend (local dev)
+```bash
+cd frontend
+npm ci
+npm run dev
+# Open http://localhost:5173 (Vite default)
+```
+
+Docker / docker-compose
+1. Build and start all services (Postgres, backend, frontend):
+
+```bash
+docker-compose up --build
+# or: docker compose up --build
+```
+
+2. Services and ports (default)
+- PostgreSQL: 5432
+- Backend API: 8000 (docs at http://localhost:8000/docs)
+- Frontend (served by nginx in container): 3000 -> port 80 inside container
+
+3. Run in background and stop:
+
+```bash
+docker-compose up -d --build
+docker-compose down
+```
+
+Database seeding
+- A helper `scripts/seed_postgres.py` exists to create tables and seed example data. Edit its connection parameters at the top to point to your DB (or modify it to read DB connection from environment variables) and then run it:
+
+```bash
+python scripts/seed_postgres.py
+```
+
+Alternatively, when using `docker-compose`, you can connect to the `postgres` container and run SQL or copy/run the script inside a container.
+
+MCP server
+- Start the local MCP server (used for Model Context Protocol integrations):
+
+```bash
+python scripts/start_mcp_server.py
+```
+
+Testing
+
+```bash
+pytest
+```
+
+Logging
+- Backend logs go to `logs/api.log` and `logs/api_errors.log` (created by `backend/run_api.py`). Create a `logs` directory if it doesn't exist:
+
+```bash
+mkdir -p logs    # Linux / macOS
+md logs          # Windows (PowerShell)
+```
+
+Notes & troubleshooting
+- Use `.env.example` as a template; never commit real secrets to git.
+- If your `DB_PASSWORD` contains special characters, URL-encode them when used in `DATABASE_URL` (e.g. `password@123` -> `password%40123`).
+- The `Dockerfile.backend` runs `uvicorn backend.api.app:app` — use `python backend/run_api.py` locally to match container behavior.
+
+Contributing
+- Please open issues or PRs for changes. Follow the existing code style and add tests for significant changes.
+
+More details on architecture, data models, and agents are in the top sections of this README and in the repository's `backend/` modules.
 
 ## Next steps
 
