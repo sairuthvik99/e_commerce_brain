@@ -139,30 +139,41 @@ AI system memory, decisions, and audit trail.
 
 
 
-# AI Ops Brain — Day 1 MVP Backbone
+# MVP Backbone
 
 ## What’s implemented
 
-- Canonical schemas for all agent outputs, root cause, action proposal, HITL decision, and memory record.
-- LangGraph backbone: user input → supervisor → domain agents (parallel) → synthesis → self-reflection → HITL → final response.
-- All nodes are class-based, modular, and ready for logic.
-- Retry/fallback stubs are ready for extension.
-- `.env.example` for environment variables.
-- `settings.py` for global config
-.
+- Canonical schemas for agent outputs, root cause, action proposals, HITL decisions, and memory records.
+- LangGraph-based pipeline: user input → supervisor → domain agents (parallel) → synthesis → self-reflection → HITL → final response.
+- Modular, class-based nodes and agent interfaces ready for implementing reasoning logic.
+- Retry/fallback stubs and observability hooks are scaffolded for production readiness.
+- `.env.example` is included as a template for environment configuration.
 
-## How to run
+## How to run (developer guide)
 
-This project can be run locally (dev), using Docker, or in a containerized environment. The repo contains a backend FastAPI service, a CLI tester (`backend/app.py`), a small React frontend (Vite), helper scripts, and a set of integration tests.
+This section is written for developers and covers local development, Docker-based runs, database setup and seeding, the MCP server, testing, and common troubleshooting.
 
-Recommended platform versions
-- Python: 3.11 (matches Dockerfile)
-- Node.js: 20.x (matches frontend Dockerfile)
+Prerequisites
+- Python 3.11
+- Node.js 20.x (for frontend dev/build)
+- Docker & Docker Compose (optional but recommended for full stack)
+- PostgreSQL (if not using Docker Compose)
 
-Quick start — development (Python + frontend)
-1. Copy `.env.example` to `.env` and fill in real values (do NOT commit secrets).
-   - If a password contains special characters (e.g. `@`) URL-encode them when used in `DATABASE_URL` (e.g. `@` -> `%40`).
-2. Create a virtual environment and install Python dependencies:
+1) Environment configuration
+
+- Copy the template and fill secrets (do NOT commit real secrets):
+
+```bash
+cp .env.example .env
+```
+
+- Important notes:
+    - If a DB password contains special characters (e.g. `@`) URL-encode them when used in `DATABASE_URL` (e.g. `password@123` -> `password%40123`).
+    - `DIAL_API_KEY` and provider keys are required for agent LLM access in most flows. For local testing you can stub these values, but some modules may raise on missing keys.
+
+2) Backend — local development
+
+- Create and activate a virtual environment, then install dependencies:
 
 ```bash
 python -m venv .venv
@@ -172,97 +183,148 @@ pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-3. Run the backend API locally (development):
+- Create a `logs` directory used by the backend logger (if not present):
 
 ```bash
-# Runs uvicorn with the FastAPI app and honors settings in env
+mkdir -p logs        # macOS / Linux
+md logs              # Windows (PowerShell)
+```
+
+- Ensure your database is available (local Postgres or via Docker). If using a local Postgres instance, set `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, and `DB_NAME` in `.env`.
+
+- Start the FastAPI backend (development):
+
+```bash
 python backend/run_api.py
 ```
 
-4. (Optional) Run the CLI graph test to exercise agents locally:
+Notes:
+- `backend/run_api.py` configures loggers and runs `uvicorn` for the application defined at `backend.api.app:app`.
+- The app exposes OpenAPI docs at `/docs` and a health endpoint at `${API_PREFIX:-/api/v1}/health`.
+
+3) CLI smoke test
+
+- A CLI tester that runs the LangGraph pipeline is available at `backend/app.py`:
 
 ```bash
 python backend/app.py
 ```
 
-Frontend (local dev)
+4) Frontend — local development
+
 ```bash
 cd frontend
 npm ci
 npm run dev
-# Open http://localhost:5173 (Vite default)
+# Open http://localhost:5173
 ```
 
-Docker / docker-compose
-1. Build and start all services (Postgres, backend, frontend):
+To build a production bundle:
+
+```bash
+npm run build
+```
+
+5) Docker / docker-compose (recommended for full-stack)
+
+- Build and bring up the full stack (Postgres, backend, frontend):
 
 ```bash
 docker-compose up --build
 # or: docker compose up --build
 ```
 
-2. Services and ports (default)
-- PostgreSQL: 5432
-- Backend API: 8000 (docs at http://localhost:8000/docs)
-- Frontend (served by nginx in container): 3000 -> port 80 inside container
-
-3. Run in background and stop:
+- Common lifecycle commands:
 
 ```bash
-docker-compose up -d --build
-docker-compose down
+docker-compose up -d --build   # start in background
+docker-compose logs -f         # follow logs
+docker-compose down            # stop and remove containers
 ```
 
-Database seeding
-- A helper `scripts/seed_postgres.py` exists to create tables and seed example data. Edit its connection parameters at the top to point to your DB (or modify it to read DB connection from environment variables) and then run it:
+- Default ports (docker-compose):
+    - PostgreSQL: `5432`
+    - Backend API: `8000` (docs: `http://localhost:8000/docs`)
+    - Frontend (nginx): `3000` → container port `80`
+
+6) Database seeding
+
+- A seed helper exists at `scripts/seed_postgres.py`. It creates tables and inserts sample data. By default the script contains connection placeholders — update those values to point to your DB or modify the script to read from environment variables.
+
+- Example: run the script against a DB container started by docker-compose:
 
 ```bash
-python scripts/seed_postgres.py
+docker-compose up -d postgres
+docker-compose exec -T postgres bash -c "psql -U user -d ecommerce_db -c 'SELECT 1'"
+# Or copy/run the seed script from a container that has python and psycopg2 available
 ```
 
-Alternatively, when using `docker-compose`, you can connect to the `postgres` container and run SQL or copy/run the script inside a container.
+7) MCP server
 
-MCP server
-- Start the local MCP server (used for Model Context Protocol integrations):
+- Start the Model Context Protocol (MCP) server used by some integrations:
 
 ```bash
 python scripts/start_mcp_server.py
 ```
 
-Testing
+8) Testing
+
+- Run unit and integration tests with `pytest` from the repo root:
 
 ```bash
 pytest
 ```
 
-Logging
-- Backend logs go to `logs/api.log` and `logs/api_errors.log` (created by `backend/run_api.py`). Create a `logs` directory if it doesn't exist:
+- Tests live under `tests/` and `tests/agent_tests/`.
 
-```bash
-mkdir -p logs    # Linux / macOS
-md logs          # Windows (PowerShell)
-```
+9) Logging & observability
 
-Notes & troubleshooting
-- Use `.env.example` as a template; never commit real secrets to git.
-- If your `DB_PASSWORD` contains special characters, URL-encode them when used in `DATABASE_URL` (e.g. `password@123` -> `password%40123`).
-- The `Dockerfile.backend` runs `uvicorn backend.api.app:app` — use `python backend/run_api.py` locally to match container behavior.
+- The backend uses `loguru`. Runtime logs are written to `logs/api.log` and `logs/api_errors.log`. Configure environment logging variables or the logger setup in `backend/run_api.py` as needed.
 
-Contributing
-- Please open issues or PRs for changes. Follow the existing code style and add tests for significant changes.
+10) Health checks and diagnostics
 
-More details on architecture, data models, and agents are in the top sections of this README and in the repository's `backend/` modules.
+- API health endpoint: `${API_PREFIX:-/api/v1}/health`
+- OpenAPI docs: `/docs`
 
-## Next steps
+## Project layout (key files)
 
-- Implement Supervisor logic and routing (Day 2).
-- Add agent reasoning and mock data (Day 3).
+- `backend/` — Python backend, LangGraph orchestration, agents, API routes and services.
+- `backend/api/app.py` — FastAPI application factory.
+- `backend/run_api.py` — Development entrypoint which configures logging and runs Uvicorn.
+- `backend/app.py` — CLI test runner that executes the LangGraph pipeline for quick verification.
+- `backend/settings.py` — Global settings loaded from environment variables.
+- `frontend/` — React (Vite) application and static assets.
+- `Dockerfile.backend`, `Dockerfile.frontend`, `docker-compose.yml` — container definitions for building and running the stack.
+- `scripts/seed_postgres.py` — DB seeding script (edit to fit your environment).
+- `scripts/start_mcp_server.py` — starts the MCP server for context protocol integration.
+- `requirements.txt` — Python dependencies.
+- `tests/` — test suites and integration checks.
 
+## Configuration & important environment variables
 
-## Day 2 — Supervisor Agent (LLM Intent Classification)
+- The repository includes `.env.example` — use it as the authoritative reference. Key variables include:
+    - `DIAL_API_KEY` — LLM provider key used by agents.
+    - `AZURE_ENDPOINT`, `API_VERSION`, `AZURE_EMBEDDING_DEPLOYMENT`, `AZURE_OPENAI_DEPLOYMENT` — Azure / LLM settings.
+    - `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DATABASE_URL` — database connection settings.
+    - `PINECONE_API_KEY`, `PINECONE_ENVIRONMENT`, `PINECONE_INDEX` — vector DB configuration (optional).
+    - `LANGFUSE_*` — telemetry integration (optional).
 
-- SupervisorAgent now uses an LLM to classify intent from the user question.
-- Routing logic is dynamic: intent labels from the LLM determine which agents are called.
-- Supervisor passes context and collects outputs from all called agents.
-- All agent outputs are structured and stored in the state.
-- Added tests for routing logic.
+## Common issues & troubleshooting
+
+- Runtime error: `DIAL_API_KEY not found` — some modules call `Settings.validate()` and expect this key. Add a placeholder in `.env` if you are running only structural tests.
+- DB connection failures — verify `DATABASE_URL` is correct and that special characters in the password are URL-encoded.
+- If dependency installation on Linux inside Docker fails due to Windows-only packages, the `Dockerfile.backend` filters them out before `pip install`.
+
+## Roadmap / planned improvements
+
+- Add upstream supervisor decision logic and richer agent reasoning implementations.
+- Improve automated CI for tests and container builds.
+- Add example deployment manifests for k8s and CI/CD.
+
+## Contributing
+
+- Fork, create a feature branch, add tests, and open a PR. Include a clear description of changes and any migration or environment changes required.
+
+If you'd like, I can also:
+- Convert `scripts/seed_postgres.py` to read DB connection from environment variables and make it runnable out-of-the-box.
+- Add a `Makefile` or shell scripts for common developer flows (dev, build, seed, test).
