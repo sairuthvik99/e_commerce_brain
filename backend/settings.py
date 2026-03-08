@@ -49,4 +49,18 @@ class Settings:
     LANGFUSE_SESSION_ID: str = "e-Commerce Multi Agents"
     LANGFUSE_USER_ID: str = "001"
 
+    # ==================== RUNTIME / DEV FLAGS ====================
+
+    # Enable debug/logging conveniences
+    DEBUG = os.getenv("DEBUG", "false").lower() in ("1", "true", "yes")
+
+    # When true, create missing ORM tables (useful for local dev only)
+    AUTO_CREATE_TABLES = os.getenv("AUTO_CREATE_TABLES", "false").lower() in ("1", "true", "yes")
+
+    # When true, run the seed script at container startup (only if SEED_DB=true in env)
+    SEED_DB = os.getenv("SEED_DB", "false").lower() in ("1", "true", "yes")
+
+    # Environment label (development / production)
+    ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+
 Settings.validate()

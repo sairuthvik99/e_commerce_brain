@@ -16,19 +16,44 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy only requirements first (for better caching)
 COPY requirements.txt .
 
-# Remove Windows line endings, filter out Windows-only packages, and install
+# Remove Windows line endings and install requirements directly (simpler, more reliable)
 RUN sed -i 's/\r$//' requirements.txt && \
-    grep -vE "^(pywin32|win32_setctime)" requirements.txt > requirements-linux.txt && \
-    pip install --upgrade pip && \
-    pip install -r requirements-linux.txt
+    # normalize encoding: convert UTF-16/other encodings to UTF-8 so shell tools work
+    python - <<'PY'
+import sys
+from pathlib import Path
+p = Path('requirements.txt')
+raw = p.read_bytes()
+enc = None
+for e in ('utf-8', 'utf-8-sig', 'utf-16', 'utf-16-le', 'utf-16-be', 'latin-1'):
+    try:
+        text = raw.decode(e)
+        enc = e
+        break
+    except Exception:
+        continue
+if enc is None:
+    text = raw.decode('latin-1', errors='ignore')
+p.write_text(text, encoding='utf-8')
+PY
+
+RUN grep -vE "^(pywin32|win32_setctime)" requirements.txt > requirements-linux.txt && \
+    python -m pip install --upgrade pip && \
+    python -m pip install --no-cache-dir -r requirements-linux.txt
+
+# (diagnostic) output installed packages so build logs show what's present
+RUN python -m pip freeze
 
 # Copy application code (changes most frequently - last layer)
 COPY backend/ ./backend/
 COPY scripts/ ./scripts/
+COPY docker/backend-entrypoint.sh /usr/local/bin/backend-entrypoint.sh
+RUN chmod +x /usr/local/bin/backend-entrypoint.sh
 
 # Create non-root user for security
 RUN useradd --create-home --shell /bin/bash appuser && \
-    chown -R appuser:appuser /app
+    chown -R appuser:appuser /app && \
+    chown appuser:appuser /usr/local/bin/backend-entrypoint.sh
 USER appuser
 
 # Set environment variables
@@ -43,5 +68,6 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')" || exit 1
 
-# Run the application
-CMD ["uvicorn", "backend.api.app:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run the application using the Python module to avoid relying on a separate uvicorn binary
+ENTRYPOINT ["/usr/local/bin/backend-entrypoint.sh"]
+CMD ["python", "-m", "uvicorn", "backend.api.app:app", "--host", "0.0.0.0", "--port", "8000"]

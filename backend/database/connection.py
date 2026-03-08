@@ -50,6 +50,17 @@ def get_engine():
             # Test connection
             with _engine.connect() as conn:
                 logger.info("[Database] Connection successful")
+                # Optionally ensure ORM models' tables exist (creates missing tables)
+                try:
+                    if getattr(Settings, "AUTO_CREATE_TABLES", False):
+                        # Import here to avoid circular imports at module import time
+                        from backend.database.models import Base
+                        Base.metadata.create_all(_engine)
+                        logger.info("[Database] Ensured all ORM tables exist (create_all)")
+                    else:
+                        logger.info("[Database] AUTO_CREATE_TABLES is false; skipping create_all")
+                except Exception:
+                    logger.exception("[Database] Failed to ensure ORM tables exist")
             
         except Exception as e:
             logger.error(f"[Database] Failed to create engine: {e}")

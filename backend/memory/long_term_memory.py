@@ -62,7 +62,8 @@ def _cleanup_pool():
     global _pool, _store, _conn
     if _conn and _pool:
         try:
-            _conn.commit()  # Commit any pending transactions
+            if not _conn.autocommit:
+                _conn.commit()  # Commit any pending transactions
             _pool.putconn(_conn)
             logger.info("[LongTermMemory] Connection returned to pool")
         except Exception as e:
@@ -78,6 +79,23 @@ def _cleanup_pool():
         _pool = None
     
     _store = None
+
+
+def _reset_connection():
+    """
+    Reset the connection if it's in an aborted transaction state.
+    
+    This is a recovery mechanism in case the connection gets into a bad state.
+    """
+    global _conn
+    if _conn is not None:
+        try:
+            # If not in autocommit mode, rollback any aborted transaction
+            if not _conn.autocommit:
+                _conn.rollback()
+                logger.info("[LongTermMemory] Connection rolled back")
+        except Exception as e:
+            logger.warning(f"[LongTermMemory] Error during rollback: {e}")
 
 
 def get_store() -> PostgresStore:
@@ -99,6 +117,10 @@ def get_store() -> PostgresStore:
         
         # Get a persistent connection from the pool
         _conn = pool.getconn()
+        
+        # Enable autocommit mode so each operation runs in its own transaction
+        # This prevents "current transaction is aborted" errors from persisting
+        _conn.autocommit = True
         
         # Create PostgresStore with the connection
         _store = PostgresStore(conn=_conn)
@@ -136,6 +158,14 @@ class LongTermMemory:
         if self._store is None:
             self._store = get_store()
         return self._store
+    
+    def _try_recover_connection(self) -> None:
+        """
+        Try to recover from an aborted transaction state.
+        
+        This is called when an operation fails due to transaction issues.
+        """
+        _reset_connection()
     
     # ==================== PREFERENCES ====================
     

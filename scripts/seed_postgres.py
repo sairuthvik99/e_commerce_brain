@@ -1,16 +1,20 @@
+import os
 import psycopg2
 from faker import Faker
 import random
 from datetime import datetime, timedelta
+from dotenv import load_dotenv
 
+load_dotenv()
 fake = Faker("en_IN")
 
+# Read DB connection info from environment (compatible with Settings/Docker compose)
 conn = psycopg2.connect(
-    dbname="",
-    user="",
-    password="",
-    host="",
-    port=""
+    dbname=os.getenv("DB_NAME"),
+    user=os.getenv("DB_USER"),
+    password=os.getenv("DB_PASSWORD"),
+    host=os.getenv("DB_HOST", "localhost"),
+    port=os.getenv("DB_PORT", "5432")
 )
 
 cur = conn.cursor()
